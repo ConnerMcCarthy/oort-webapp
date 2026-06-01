@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#030711" />
+    <title>Why the inner Oort Cloud has a spiral</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Mono:wght@400;500&display=swap');
+
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #030711;
+        color: #eef6ff;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        background: #030711;
+        background-image: radial-gradient(circle, rgba(178,139,255,0.055) 1px, transparent 1px);
+        background-size: 30px 30px;
+        overflow-x: hidden;
+      }
+
+      /* ── Base button ─────────────────────────────────────────────── */
+      .view-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border: 1px solid rgba(180,210,255,0.24);
+        background: rgba(8,18,36,0.68);
+        color: #eef6ff;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(12px);
+        border-radius: 6px;
+      }
+      .view-button:hover {
+        border-color: rgba(180,210,255,0.46);
+        background: rgba(18,38,72,0.76);
+      }
+      .view-button:focus-visible {
+        outline: 2px solid rgba(255,224,145,0.95);
+        outline-offset: 3px;
+      }
+
+      /* ── Page wrapper ────────────────────────────────────────────── */
+      .ke-page {
+        min-height: 100vh;
+      }
+
+      .ke-inner {
+        max-width: min(1300px, calc(100vw - 64px));
+        margin: 0 auto;
+        padding: clamp(28px, 5vw, 64px) clamp(20px, 4vw, 56px) 96px;
+      }
+
+      /* ── Header ──────────────────────────────────────────────────── */
+      .ke-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+        padding-bottom: clamp(24px, 4vw, 44px);
+        border-bottom: 1px solid rgba(178,139,255,0.13);
+      }
+
+      .ke-title-group { flex: 1; min-width: 0; }
+
+      .ke-page .why-title {
+        font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+        font-weight: 700;
+        font-size: clamp(28px, 5.5vw, 68px);
+        line-height: 0.95;
+        letter-spacing: -0.025em;
+        background: linear-gradient(130deg,
+          #fff 0%,
+          rgba(218,200,255,0.95) 45%,
+          rgba(130,175,255,0.85) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+      }
+
+      .ke-back-btn {
+        flex-shrink: 0;
+        margin-top: 6px;
+        min-height: 44px;
+        padding: 0 20px;
+        font-size: 14px;
+        border-radius: 8px;
+        letter-spacing: 0.01em;
+      }
+
+      /* ── Mode toggle + sim pill ──────────────────────────────────── */
+      .ke-controls-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: clamp(24px, 3vw, 40px);
+        margin-bottom: clamp(28px, 4vw, 56px);
+      }
+
+      .ke-level-pill {
+        display: inline-flex;
+        padding: 4px;
+        gap: 2px;
+        border: 1px solid rgba(178,139,255,0.30);
+        border-radius: 12px;
+        background: rgba(6,10,22,0.75);
+        backdrop-filter: blur(20px);
+        flex-shrink: 0;
+      }
+
+      .ke-level-btn {
+        padding: 10px 30px;
+        font-size: 12px;
+        font-family: 'DM Mono', 'Courier New', monospace;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: rgba(178,155,255,0.40);
+        cursor: pointer;
+        transition: background 0.22s, color 0.22s, box-shadow 0.22s;
+        white-space: nowrap;
+      }
+      .ke-level-btn.active {
+        background: linear-gradient(135deg,
+          rgba(178,139,255,0.28) 0%,
+          rgba(110,155,255,0.18) 100%);
+        color: rgba(228,215,255,0.96);
+        box-shadow: 0 0 18px rgba(178,139,255,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .ke-level-btn:not(.active):hover {
+        background: rgba(178,139,255,0.10);
+        color: rgba(210,195,255,0.72);
+      }
+
+      .ke-sim-pill .ke-level-btn {
+        color: rgba(200,175,255,0.65);
+      }
+      .ke-sim-pill .ke-level-btn:hover {
+        background: rgba(178,139,255,0.14);
+        color: rgba(220,205,255,0.90);
+      }
+
+      /* ── Step cards ──────────────────────────────────────────────── */
+      .ke-step {
+        position: relative;
+        display: flex;
+        gap: 48px;
+        align-items: center;
+        padding: clamp(22px, 3vw, 38px) clamp(22px, 3vw, 40px);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.016);
+        border: 1px solid rgba(178,139,255,0.095);
+        margin-bottom: 20px;
+        overflow: hidden;
+        transition: border-color 0.3s;
+      }
+      .ke-step:hover { border-color: rgba(178,139,255,0.18); }
+
+      .ke-step::before {
+        position: absolute;
+        right: 28px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-family: 'DM Mono', 'Courier New', monospace;
+        font-size: clamp(80px, 11vw, 140px);
+        font-weight: 500;
+        line-height: 1;
+        pointer-events: none;
+        z-index: 0;
+        user-select: none;
+      }
+
+      .ke-step[data-step="1"] { border-left: 3px solid rgba(190,152,255,0.55); }
+      .ke-step[data-step="1"]::before { content: "01"; color: rgba(190,152,255,0.048); }
+      .ke-step[data-step="2"] { border-left: 3px solid rgba(148,162,255,0.55); }
+      .ke-step[data-step="2"]::before { content: "02"; color: rgba(148,162,255,0.048); }
+      .ke-step[data-step="3"] { border-left: 3px solid rgba(93,170,255,0.55); }
+      .ke-step[data-step="3"]::before { content: "03"; color: rgba(93,170,255,0.048); }
+
+      /* ── Diagram column ──────────────────────────────────────────── */
+      .ke-diagram-col {
+        flex-shrink: 0;
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        position: relative;
+        z-index: 1;
+      }
+      .ke-canvas-wrap {
+        width: 320px;
+        height: 200px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(3,7,18,0.94);
+        border: 1px solid rgba(178,139,255,0.14);
+        box-shadow:
+          0 0 0 1px rgba(0,0,0,0.5),
+          0 8px 32px rgba(0,0,0,0.4),
+          inset 0 0 40px rgba(0,0,0,0.35);
+      }
+      .ke-canvas-wrap canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .ke-slider {
+        width: 100%;
+        accent-color: rgba(178,139,255,0.88);
+        cursor: pointer;
+        appearance: auto;
+      }
+
+      /* ── Step text ───────────────────────────────────────────────── */
+      .ke-step-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
+
+      .ke-step-badge {
+        display: inline-block;
+        font-family: 'DM Mono', 'Courier New', monospace;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(200,175,255,0.55);
+        margin-bottom: 10px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border: 1px solid rgba(178,139,255,0.20);
+        background: rgba(178,139,255,0.07);
+      }
+      .ke-step[data-step="2"] .ke-step-badge { color: rgba(175,190,255,0.55); border-color: rgba(148,162,255,0.20); background: rgba(148,162,255,0.07); }
+      .ke-step[data-step="3"] .ke-step-badge { color: rgba(140,195,255,0.55); border-color: rgba(93,170,255,0.20);  background: rgba(93,170,255,0.07); }
+      .ke-step[data-step="4"] .ke-step-badge { color: rgba(100,215,225,0.55); border-color: rgba(72,210,220,0.20);  background: rgba(72,210,220,0.07); }
+
+      .ke-step-text h3 {
+        margin: 0 0 12px;
+        font-size: clamp(15px, 1.7vw, 20px);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: rgba(228,218,255,0.96);
+        line-height: 1.2;
+      }
+      .ke-step-text p {
+        margin: 0;
+        font-size: clamp(13px, 1.3vw, 15px);
+        line-height: 1.72;
+        color: rgba(195,210,255,0.65);
+        max-width: 62ch;
+      }
+
+      /* ── Callout ─────────────────────────────────────────────────── */
+      .ke-callout {
+        position: relative;
+        margin-top: 28px;
+        padding: clamp(20px, 3vw, 30px) clamp(22px, 3vw, 36px);
+        border-radius: 14px;
+        border: 1px solid rgba(178,139,255,0.22);
+        background: linear-gradient(135deg,
+          rgba(178,139,255,0.09) 0%,
+          rgba(93,170,255,0.05) 100%);
+        font-size: clamp(13px, 1.3vw, 15px);
+        line-height: 1.68;
+        color: rgba(215,225,255,0.78);
+        overflow: hidden;
+      }
+      .ke-callout::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 60% 80% at 5% 50%,
+          rgba(178,139,255,0.10) 0%, transparent 100%);
+        pointer-events: none;
+      }
+
+      /* ── Mobile ──────────────────────────────────────────────────── */
+      @media (max-width: 620px) {
+        .ke-step { flex-direction: column; gap: 20px; padding: 22px 18px; }
+        .ke-canvas-wrap { width: 100%; height: 180px; }
+        .ke-diagram-col { width: 100%; }
+        .ke-step::before { font-size: 72px; right: 14px; top: auto; bottom: 10px; transform: none; }
+        .ke-title-group { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+        .ke-back-btn { min-height: 40px; padding: 0 16px; font-size: 13px; }
+        .ke-level-btn { padding: 9px 18px; font-size: 11px; }
+      }
+
+      /* ── Text mode switching ─────────────────────────────────────── */
+      .ke-simple-only { display: none; }
+      .ke-page.ke-simple .ke-detail-only { display: none; }
+      .ke-page.ke-simple .ke-simple-only { display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="ke-page ke-simple">
+      <div class="ke-inner">
+
+        <div class="ke-header">
+          <button id="backBtn" class="view-button ke-back-btn" type="button">← Back</button>
+          <div class="ke-title-group">
+            <h2 class="why-title">Why the inner Oort Cloud has a spiral</h2>
+          </div>
+        </div>
+
+        <div class="ke-controls-bar">
+          <div class="ke-level-pill">
+            <button id="keDetailBtn" class="ke-level-btn"        type="button">Detailed</button>
+            <button id="keSimpleBtn" class="ke-level-btn active" type="button">Simple</button>
+          </div>
+          <div class="ke-level-pill ke-sim-pill">
+            <button id="kozaiSimBtn" class="ke-level-btn" type="button">Formation Sim →</button>
+          </div>
+        </div>
+
+        <!-- Step 1 — two lines → two spiral arms -->
+        <div class="ke-step" data-step="1">
+          <div class="ke-diagram-col">
+            <div class="ke-canvas-wrap"><canvas id="keDiagram3"></canvas></div>
+            <input type="range" id="keDiagram3Slider" class="ke-slider" min="0" max="100" value="0">
+          </div>
+          <div class="ke-step-text"></div>
+        </div>
+
+        <!-- Step 2 — solar system bobs through the galactic disk -->
+        <div class="ke-step" data-step="2">
+          <div class="ke-diagram-col">
+            <div class="ke-canvas-wrap"><canvas id="keDiagram5"></canvas></div>
+            <input type="range" id="keDiagram5Slider" class="ke-slider" min="0" max="100" value="0">
+          </div>
+          <div class="ke-step-text"></div>
+        </div>
+
+        <!-- Step 3 — omega / pointed end -->
+        <div class="ke-step" data-step="3">
+          <div class="ke-diagram-col">
+            <div class="ke-canvas-wrap"><canvas id="keDiagram1"></canvas></div>
+            <input type="range" id="keDiagram1Slider" class="ke-slider" min="0" max="100" value="0">
+          </div>
+          <div class="ke-step-text"></div>
+        </div>
+
+        <div class="ke-callout"></div>
+
+      </div>
+    </div>
+
+    <script src="step-content.js"></script>
+    <script>
+      const page = document.querySelector('.ke-page');
+
+      // ── Inject text from step-content.js ───────────────────────────
+      document.querySelectorAll('.ke-step-text').forEach((el, i) => {
+        const s = STEP_CONTENT.steps[i];
+        el.innerHTML = `
+          <span class="ke-step-badge">${s.badge}</span>
+          <h3 class="ke-detail-only">${s.headingDetail}</h3>
+          <h3 class="ke-simple-only">${s.headingSimple}</h3>
+          <p class="ke-detail-only">${s.detail}</p>
+          <p class="ke-simple-only">${s.simple}</p>`;
+      });
+      document.querySelector('.ke-callout').innerHTML = `
+        <span class="ke-detail-only">${STEP_CONTENT.callout.detail}</span>
+        <span class="ke-simple-only">${STEP_CONTENT.callout.simple}</span>`;
+
+      // ── Navigation ─────────────────────────────────────────────────
+      document.getElementById('backBtn').addEventListener('click', () => {
+        if (history.length > 1) history.back();
+        else location.href = './';
+      });
+      document.getElementById('kozaiSimBtn').addEventListener('click', () => {
+        location.href = './index.html#open-formation';
+      });
+
+      // ── Mode toggle ─────────────────────────────────────────────────
+      document.getElementById('keDetailBtn').addEventListener('click', () => {
+        page.classList.remove('ke-simple');
+        document.getElementById('keDetailBtn').classList.add('active');
+        document.getElementById('keSimpleBtn').classList.remove('active');
+      });
+      document.getElementById('keSimpleBtn').addEventListener('click', () => {
+        page.classList.add('ke-simple');
+        document.getElementById('keSimpleBtn').classList.add('active');
+        document.getElementById('keDetailBtn').classList.remove('active');
+      });
+
+      // ── Diagram RAF tracking ─────────────────────────────────────────
+      let keRafs = [];
+
+      // ── Diagram 1: ω sweep — perihelion locks at galactic pole ──────
+      function initKeDiagram1() {
+        const canvas = document.getElementById('keDiagram1');
+        if (!canvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        const cx = W / 2;
+        const ecc = 0.50;
+        const cy = H * 0.48;
+        // orbitA constrained so orbit stays on-screen at all ω from 0°→90°
+        const orbitA = Math.min(
+          (H - 12 - cy) / (1 + ecc),
+          (cx - 12) / (1 + ecc),
+          (cy - 12) / Math.sqrt(1 - ecc * ecc)
+        ) * 0.88;
+        const orbitB = orbitA * Math.sqrt(1 - ecc * ecc);
+        const pR = orbitA * (1 - ecc); // perihelion distance from Sun
+        const SPEED = 1 / 500;
+        let phase = 0, scrubbing = false, resumeTimer = null;
+        const slider = document.getElementById('keDiagram1Slider');
+        slider.addEventListener('input', () => { phase = +slider.value / 100; scrubbing = true; clearTimeout(resumeTimer); });
+        slider.addEventListener('pointerup', () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        slider.addEventListener('touchend',  () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+
+        // Phase → ω: hold at 0°, ease to 90°, hold at 90°
+        // locked phase: 0.62 → 1.0 = 38% of loop ≈ 3.2s at SPEED 1/500
+        function phToOmega(ph) {
+          if (ph <= 0.08) return 0;
+          if (ph >= 0.62) return Math.PI / 2;
+          const t = (ph - 0.08) / 0.54;
+          const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out
+          return e * Math.PI / 2;
+        }
+
+        function drawOrbit(omega, strokeStyle, lw) {
+          c.save(); c.translate(cx, cy); c.rotate(-omega);
+          c.beginPath(); c.ellipse(-orbitA * ecc, 0, orbitA, orbitB, 0, 0, Math.PI * 2);
+          c.strokeStyle = strokeStyle; c.lineWidth = lw; c.stroke(); c.restore();
+        }
+
+        function draw(ph) {
+          c.clearRect(0, 0, W, H);
+          const omega = phToOmega(ph);
+          const locked = ph >= 0.78;
+          const holdStart = ph <= 0.08;
+          const lockAlpha = locked ? Math.min(1, (ph - 0.78) / 0.14) : 0;
+
+          // ── N-pole target glow (brightens when locked) ──
+          const northA = 0.06 + lockAlpha * 0.22;
+          const ng = c.createRadialGradient(cx, cy - pR, 0, cx, cy - pR, 28);
+          ng.addColorStop(0, `rgba(190,148,255,${northA})`);
+          ng.addColorStop(1, 'rgba(190,148,255,0)');
+          c.fillStyle = ng; c.beginPath(); c.arc(cx, cy - pR, 28, 0, Math.PI * 2); c.fill();
+
+          // Faint S-pole target
+          const sg = c.createRadialGradient(cx, cy + pR, 0, cx, cy + pR, 18);
+          sg.addColorStop(0, 'rgba(120,180,255,0.04)');
+          sg.addColorStop(1, 'rgba(120,180,255,0)');
+          c.fillStyle = sg; c.beginPath(); c.arc(cx, cy + pR, 18, 0, Math.PI * 2); c.fill();
+
+          // ── Galactic equator (dashed) ──
+          c.strokeStyle = 'rgba(93,170,255,0.22)'; c.lineWidth = 1;
+          c.setLineDash([4, 8]);
+          c.beginPath(); c.moveTo(10, cy); c.lineTo(W - 10, cy); c.stroke();
+          c.setLineDash([]);
+
+          // ── Labels ──
+          c.font = '18px system-ui,sans-serif';
+          c.fillStyle = 'rgba(200,160,255,0.48)';
+          c.textAlign = 'left'; c.textBaseline = 'top';
+          c.fillText('galactic N ↑', 10, 6);
+
+          // ── Ghost orbit at ω=0 (reference) ──
+          drawOrbit(0, 'rgba(93,140,255,0.14)', 1);
+          c.fillStyle = 'rgba(255,244,204,0.18)';
+          c.beginPath(); c.arc(cx + pR, cy, 2.5, 0, Math.PI * 2); c.fill();
+
+          // ── Perihelion trail arc (0° → current ω) ──
+          if (omega > 0.04) {
+            c.beginPath();
+            c.arc(cx, cy, pR, 0, -omega, true);
+            c.strokeStyle = `rgba(190,148,255,${0.28 + lockAlpha * 0.15})`;
+            c.lineWidth = 1.5; c.setLineDash([3, 5]); c.stroke(); c.setLineDash([]);
+          }
+
+
+          // ── Current orbit ──
+          drawOrbit(omega, `rgba(178,139,255,${0.55 + lockAlpha * 0.28})`, 1.8);
+
+          // ── Sun ──
+          c.fillStyle = 'rgba(255,244,204,0.95)';
+          c.shadowColor = 'rgba(255,220,130,0.9)'; c.shadowBlur = 12;
+          c.beginPath(); c.arc(cx, cy, 3.5, 0, Math.PI * 2); c.fill();
+          c.shadowBlur = 0;
+
+          // ── Perihelion dot (world coords) ──
+          // At ω=0: (cx+pR, cy). At ω=π/2: (cx, cy−pR)
+          const pWx = cx + pR * Math.cos(-omega);
+          const pWy = cy + pR * Math.sin(-omega);
+          c.fillStyle = 'rgba(255,244,204,0.95)';
+          c.shadowColor = locked ? 'rgba(200,155,255,0.90)' : 'rgba(255,220,130,0.80)';
+          c.shadowBlur = locked ? 8 + lockAlpha * 9 : 8;
+          c.beginPath(); c.arc(pWx, pWy, 3.5, 0, Math.PI * 2); c.fill();
+          c.shadowBlur = 0;
+
+          // Perihelion label (fades out when locked)
+          const periLabelA = 0.48 * (1 - lockAlpha * 0.85);
+          if (periLabelA > 0.05) {
+            c.font = '16px system-ui,sans-serif';
+            c.fillStyle = `rgba(255,244,204,${periLabelA})`;
+            if (omega < 0.30) {
+              c.textAlign = 'left'; c.textBaseline = 'middle';
+              c.fillText('perihelion', pWx + 6, pWy - 1);
+            } else {
+              c.textAlign = 'center'; c.textBaseline = 'bottom';
+              c.fillText('perihelion', pWx, pWy - 6);
+            }
+          }
+
+          // "Kozai equilibrium" label near N pole (fades in when locked)
+          if (lockAlpha > 0.25) {
+            c.font = 'bold 18px system-ui,sans-serif';
+            c.fillStyle = `rgba(200,155,255,${lockAlpha * 0.85})`;
+            c.textAlign = 'center'; c.textBaseline = 'bottom';
+            c.fillText('Kozai equilibrium ✓', cx, pWy - 9);
+          }
+
+          // ── Status text (bottom) ──
+          let status, statusColor;
+          if (holdStart) {
+            status = 'ω = 0°';
+            statusColor = 'rgba(170,185,230,0.50)';
+          } else if (locked) {
+            status = 'ω = 90° — locked at galactic N pole';
+            statusColor = `rgba(200,155,255,${0.62 + lockAlpha * 0.28})`;
+          } else {
+            const deg = Math.round(omega * 180 / Math.PI);
+            status = `ω = ${deg}° — precessing…`;
+            statusColor = 'rgba(170,185,230,0.50)';
+          }
+          c.font = '18px system-ui,sans-serif';
+          c.fillStyle = statusColor;
+          c.textAlign = 'left'; c.textBaseline = 'bottom';
+          c.fillText(status, 8, H - 8);
+        }
+
+        function frame() {
+          if (!scrubbing) { phase = (phase + SPEED) % 1; slider.value = Math.round(phase * 100); }
+          draw(phase); keRafs.push(requestAnimationFrame(frame));
+        }
+        keRafs.push(requestAnimationFrame(frame));
+      }
+
+      // ── Diagram 2: Kozai potential energy landscape ───────────────────
+      function initKeDiagram2() {
+        const canvas = document.getElementById('keDiagram2');
+        if (!canvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        const padL = 32, padR = 12, padT = 22, padB = 30;
+        const gW = W - padL - padR, gH = H - padT - padB;
+        function U(omega) { return Math.cos(2 * omega); }
+        function omgToX(omega) { return padL + (omega / (Math.PI * 2)) * gW; }
+        function uToY(u) { return padT + (1 - u) / 2 * gH; }
+        const LUT_N = 600;
+        const lutOmega = new Float64Array(LUT_N + 1);
+        {
+          let sum = 0;
+          const raw = new Float64Array(LUT_N + 1);
+          for (let i = 0; i <= LUT_N; i++) {
+            const om = (i / LUT_N) * Math.PI * 2;
+            raw[i] = sum;
+            if (i < LUT_N) sum += Math.sqrt(Math.max(0, 1 - Math.cos(2 * ((i + 0.5) / LUT_N) * Math.PI * 2)));
+          }
+          for (let j = 0; j <= LUT_N; j++) lutOmega[j] = (j / LUT_N) * Math.PI * 2;
+          const total = sum; let ptr = 0;
+          for (let j = 0; j <= LUT_N; j++) {
+            const target = (j / LUT_N) * total;
+            while (ptr < LUT_N && raw[ptr + 1] < target) ptr++;
+            const t0 = raw[ptr], t1 = ptr < LUT_N ? raw[ptr + 1] : total;
+            const alpha = t1 > t0 ? (target - t0) / (t1 - t0) : 0;
+            lutOmega[j] = ((ptr + alpha) / LUT_N) * Math.PI * 2;
+          }
+        }
+        function phaseToOmega(ph) {
+          const idx = Math.min(LUT_N - 1, Math.floor(ph * LUT_N));
+          const alpha = ph * LUT_N - idx;
+          return lutOmega[idx] * (1 - alpha) + lutOmega[idx + 1] * alpha;
+        }
+        const SPEED = 1 / 340;
+        let phase = 0, scrubbing = false, resumeTimer = null;
+        const slider = document.getElementById('keDiagram2Slider');
+        slider.addEventListener('input', () => { phase = +slider.value / 100; scrubbing = true; clearTimeout(resumeTimer); });
+        slider.addEventListener('pointerup', () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        slider.addEventListener('touchend',  () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        function draw(ph) {
+          c.clearRect(0, 0, W, H);
+          const ballOmega = phaseToOmega(ph);
+          for (const eq of [Math.PI / 2, 3 * Math.PI / 2]) {
+            const gx = omgToX(eq), gy = uToY(-1);
+            const g = c.createRadialGradient(gx, gy, 0, gx, gy, 30);
+            g.addColorStop(0, 'rgba(178,139,255,0.16)'); g.addColorStop(1, 'rgba(178,139,255,0)');
+            c.fillStyle = g; c.beginPath(); c.arc(gx, gy, 30, 0, Math.PI * 2); c.fill();
+          }
+          c.beginPath();
+          for (let i = 0; i <= 240; i++) {
+            const om = (i / 240) * Math.PI * 2;
+            i === 0 ? c.moveTo(omgToX(om), uToY(U(om))) : c.lineTo(omgToX(om), uToY(U(om)));
+          }
+          c.strokeStyle = 'rgba(178,139,255,0.52)'; c.lineWidth = 2; c.stroke();
+          c.strokeStyle = 'rgba(200,210,255,0.12)'; c.lineWidth = 1;
+          c.beginPath(); c.moveTo(padL, uToY(0)); c.lineTo(padL + gW, uToY(0)); c.stroke();
+          c.font = '18px system-ui,sans-serif'; c.fillStyle = 'rgba(180,190,220,0.38)';
+          c.textAlign = 'center'; c.textBaseline = 'top';
+          for (const [lbl, om] of [['0°', 0], ['90°', Math.PI/2], ['180°', Math.PI], ['270°', 3*Math.PI/2]]) {
+            c.fillText(lbl, omgToX(om), H - padB + 4);
+          }
+          c.fillStyle = 'rgba(180,190,220,0.28)'; c.textBaseline = 'bottom';
+          c.fillText('ω →', padL + gW, H - padB + 2);
+          c.fillStyle = 'rgba(200,160,255,0.68)'; c.textBaseline = 'top';
+          c.fillText('valley', omgToX(Math.PI / 2), uToY(-0.82));
+          c.fillText('valley', omgToX(3 * Math.PI / 2), uToY(-0.82));
+          c.fillStyle = 'rgba(180,190,220,0.38)';
+          c.fillText('hill', omgToX(0) + 10, uToY(0.76));
+          c.fillText('hill', omgToX(Math.PI), uToY(0.76));
+          if (ph < 0.04 || ph > 0.97) {
+            c.fillStyle = 'rgba(220,230,255,0.52)'; c.textAlign = 'left'; c.textBaseline = 'middle';
+            c.fillText('← all comets start here', omgToX(0) + 4, uToY(0.90));
+          }
+          const bX = omgToX(ballOmega), bY = uToY(U(ballOmega));
+          c.strokeStyle = 'rgba(255,220,130,0.18)'; c.lineWidth = 1; c.setLineDash([2, 5]);
+          c.beginPath(); c.moveTo(bX, bY); c.lineTo(bX, H - padB); c.stroke(); c.setLineDash([]);
+          c.fillStyle = 'rgba(255,244,204,0.95)'; c.shadowColor = 'rgba(255,220,130,0.9)'; c.shadowBlur = 12;
+          c.beginPath(); c.arc(bX, bY, 5, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+        }
+        function frame() {
+          if (!scrubbing) { phase = (phase + SPEED) % 1; slider.value = Math.round(phase * 100); }
+          draw(phase); keRafs.push(requestAnimationFrame(frame));
+        }
+        keRafs.push(requestAnimationFrame(frame));
+      }
+
+      // ── Diagram 3: Two straight lines → two spiral arms ──────────────
+      function initKeDiagram3() {
+        const canvas = document.getElementById('keDiagram3');
+        if (!canvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        const cx = W / 2, cy = H / 2 + 4;
+        const maxR = Math.min(W, H) * 0.43;
+        // outer leads: ph * π * (r / maxR) — outer winds faster, inner barely moves
+        const NPTS = 36, rMin = maxR * 0.08;
+        const SPEED = 1 / 320;
+        let phase = 0, scrubbing = false, resumeTimer = null;
+        const slider = document.getElementById('keDiagram3Slider');
+        slider.addEventListener('input', () => { phase = +slider.value / 100; scrubbing = true; clearTimeout(resumeTimer); });
+        slider.addEventListener('pointerup', () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        slider.addEventListener('touchend',  () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        function draw(ph) {
+          c.clearRect(0, 0, W, H);
+          c.beginPath(); c.arc(cx, cy, maxR, 0, Math.PI * 2);
+          c.strokeStyle = 'rgba(100,80,200,0.10)'; c.lineWidth = 1; c.stroke();
+          const arms = [-Math.PI / 2, Math.PI / 2].map((startAngle) => {
+            const pts = [];
+            for (let i = 0; i < NPTS; i++) {
+              const t = i / (NPTS - 1), r = rMin + (maxR - rMin) * t;
+              // inner→90°, outer→180° at full phase
+              const windAngle = ph * Math.PI * (0.5 + 0.5 * (r - rMin) / (maxR - rMin));
+              const angle = startAngle + windAngle;
+              pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), t, r });
+            }
+            return pts;
+          });
+          const armColors = ['rgba(200,160,255,0.38)', 'rgba(130,185,255,0.32)'];
+          arms.forEach((pts, armIdx) => {
+            c.beginPath();
+            pts.forEach((p, i) => i === 0 ? c.moveTo(p.x, p.y) : c.lineTo(p.x, p.y));
+            c.strokeStyle = armColors[armIdx]; c.lineWidth = 1.8; c.stroke();
+          });
+          arms.forEach((pts, armIdx) => {
+            for (let i = 0; i < NPTS; i += 3) {
+              const p = pts[i], sz = 2.0 + p.t * 2.4;
+              let col;
+              if (armIdx === 0) col = `rgba(${Math.round(165 + p.t * 45)},${Math.round(150 + p.t * 10)},255,${0.58 + p.t * 0.32})`;
+              else col = `rgba(130,${Math.round(165 + p.t * 20)},255,${0.52 + p.t * 0.32})`;
+              c.fillStyle = col;
+              if (p.t > 0.72) { c.shadowColor = armIdx === 0 ? 'rgba(200,160,255,0.60)' : 'rgba(100,185,255,0.60)'; c.shadowBlur = 6; }
+              c.beginPath(); c.arc(p.x, p.y, sz, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+            }
+          });
+          c.fillStyle = 'rgba(255,244,204,0.95)'; c.shadowColor = 'rgba(255,220,130,0.9)'; c.shadowBlur = 12;
+          c.beginPath(); c.arc(cx, cy, 3.5, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+          c.font = '18px system-ui,sans-serif'; c.fillStyle = 'rgba(200,190,230,0.42)';
+          c.textAlign = 'left'; c.textBaseline = 'top';
+          c.fillText(ph < 0.01 ? 't = 0  (two straight arms)' : `t ≈ ${(ph * 2.5).toFixed(1)} Gyr`, 8, 8);
+        }
+        function frame() {
+          if (!scrubbing) { phase = (phase + SPEED) % 1; slider.value = Math.round(phase * 100); }
+          draw(phase); keRafs.push(requestAnimationFrame(frame));
+        }
+        keRafs.push(requestAnimationFrame(frame));
+      }
+
+      // ── Diagram 4: Sky map — perihelia drain to two polar bands ──────
+      function initKeDiagram4() {
+        const canvas = document.getElementById('keDiagram4');
+        if (!canvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        const padL = 6, padR = 6, padT = 18, padB = 18;
+        const gW = W - padL - padR, gH = H - padT - padB;
+        function toXY(lon, lat) { return { x: padL + (lon / 360) * gW, y: padT + ((90 - lat) / 180) * gH }; }
+        const N = 66;
+        const comets = Array.from({ length: N }, () => {
+          const lon0 = Math.random() * 360, lat0 = (Math.random() * 2 - 1) * 88;
+          const north = Math.random() < 0.5, rate = 0.55 + Math.random() * 0.90;
+          return { lon0, lat0, north, targetLat: north ? 89 : -89, rate };
+        });
+        const SPEED = 1 / 330;
+        let phase = 0, scrubbing = false, resumeTimer = null;
+        const slider = document.getElementById('keDiagram4Slider');
+        slider.addEventListener('input', () => { phase = +slider.value / 100; scrubbing = true; clearTimeout(resumeTimer); });
+        slider.addEventListener('pointerup', () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        slider.addEventListener('touchend',  () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        function toFrac(ph) {
+          if (ph < 0.10) return 0; if (ph > 0.90) return 1;
+          const f = (ph - 0.10) / 0.80; return f * f * (3 - 2 * f);
+        }
+        function draw(ph) {
+          c.clearRect(0, 0, W, H); const frac = toFrac(ph);
+          c.strokeStyle = 'rgba(100,80,200,0.18)'; c.lineWidth = 1; c.strokeRect(padL, padT, gW, gH);
+          const eqY = padT + gH / 2;
+          c.strokeStyle = 'rgba(93,170,255,0.28)'; c.lineWidth = 1; c.setLineDash([4, 8]);
+          c.beginPath(); c.moveTo(padL, eqY); c.lineTo(padL + gW, eqY); c.stroke(); c.setLineDash([]);
+          c.font = '18px system-ui,sans-serif'; c.fillStyle = 'rgba(93,170,255,0.40)';
+          c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('equator', padL + 3, eqY - 6);
+          if (frac > 0.40) {
+            const ha = Math.min(1, (frac - 0.40) / 0.45);
+            const gnG = c.createLinearGradient(0, padT, 0, padT + gH * 0.28);
+            gnG.addColorStop(0, `rgba(200,160,255,${ha * 0.30})`); gnG.addColorStop(1, 'rgba(200,160,255,0)');
+            c.fillStyle = gnG; c.fillRect(padL, padT, gW, gH * 0.28);
+            const gsG = c.createLinearGradient(0, padT + gH, 0, padT + gH * 0.72);
+            gsG.addColorStop(0, `rgba(130,185,255,${ha * 0.26})`); gsG.addColorStop(1, 'rgba(130,185,255,0)');
+            c.fillStyle = gsG; c.fillRect(padL, padT + gH * 0.72, gW, gH * 0.28);
+          }
+          for (const cm of comets) {
+            const cf = Math.min(1, frac * cm.rate), ssf = cf * cf * (3 - 2 * cf);
+            const lat = cm.lat0 + (cm.targetLat - cm.lat0) * ssf, pos = toXY(cm.lon0, lat);
+            const alpha = 0.38 + ssf * 0.52, sz = 1.5 + ssf * 1.2;
+            c.fillStyle = cm.north ? `rgba(210,165,255,${alpha})` : `rgba(120,188,255,${alpha})`;
+            if (ssf > 0.80) { c.shadowColor = cm.north ? 'rgba(190,150,255,0.50)' : 'rgba(90,170,255,0.50)'; c.shadowBlur = 4; }
+            c.beginPath(); c.arc(pos.x, pos.y, sz, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+          }
+          if (frac > 0.62) {
+            const la = Math.min(1, (frac - 0.62) / 0.28);
+            c.font = '18px system-ui,sans-serif';
+            c.fillStyle = `rgba(210,165,255,${la * 0.88})`; c.textAlign = 'right'; c.textBaseline = 'top';
+            c.fillText('Arm 1 — ω = 90° (galactic N)', padL + gW - 3, padT + 2);
+            c.fillStyle = `rgba(120,188,255,${la * 0.80})`; c.textBaseline = 'bottom';
+            c.fillText('Arm 2 — ω = 270° (galactic S)', padL + gW - 3, padT + gH - 2);
+          }
+          const st = frac < 0.06 ? 'perihelia scattered across the whole sky'
+                   : frac < 0.88 ? 'Kozai locking — draining toward poles…'
+                   :               'locked — two polar arms formed';
+          c.fillStyle = 'rgba(200,190,230,0.42)'; c.font = '18px system-ui,sans-serif';
+          c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText(st, padL + 2, 3);
+          c.fillStyle = 'rgba(170,170,210,0.28)'; c.textBaseline = 'bottom';
+          c.fillText('each dot = one comet\'s perihelion direction in the sky', padL + 2, H - 2);
+        }
+        function frame() {
+          if (!scrubbing) { phase = (phase + SPEED) % 1; slider.value = Math.round(phase * 100); }
+          draw(phase); keRafs.push(requestAnimationFrame(frame));
+        }
+        keRafs.push(requestAnimationFrame(frame));
+      }
+
+      // ── Diagram 5: Solar system bobs through the galactic disk ───────
+      function initKeDiagram5() {
+        const canvas = document.getElementById('keDiagram5');
+        if (!canvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        const c = canvas.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const W = rect.width, H = rect.height;
+        const planeY = H * 0.50;       // galactic mid-plane y
+        const amp    = H * 0.32;       // oscillation amplitude (~100 pc scaled)
+        const padL = 8, padR = 8;
+        const gW = W - padL - padR;    // usable drawing width
+
+        const SPEED = 1 / 420;
+        let phase = 0, scrubbing = false, resumeTimer = null;
+        const slider = document.getElementById('keDiagram5Slider');
+        slider.addEventListener('input',    () => { phase = +slider.value / 100; scrubbing = true; clearTimeout(resumeTimer); });
+        slider.addEventListener('pointerup',() => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+        slider.addEventListener('touchend', () => { resumeTimer = setTimeout(() => { scrubbing = false; }, 1500); });
+
+        // Deterministic star field (avoids re-seeding Math.random)
+        const srng = (() => { let s = 7919; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();
+        const STARS = [];
+        while (STARS.length < 22) {
+          const sx = srng() * W, sy = srng() * H;
+          if (Math.abs(sy - planeY) > 36) // keep stars away from disk band
+            STARS.push({ x: sx, y: sy, r: srng() * 0.9 + 0.3, a: srng() * 0.22 + 0.07 });
+        }
+
+        function draw(ph) {
+          c.clearRect(0, 0, W, H);
+
+          // ── Stars ──
+          for (const s of STARS) {
+            c.fillStyle = `rgba(205,215,255,${s.a})`;
+            c.beginPath(); c.arc(s.x, s.y, s.r, 0, Math.PI * 2); c.fill();
+          }
+
+          // Current SS height
+          const curY = planeY - amp * Math.sin(ph * Math.PI * 2);
+          const hFrac = (planeY - curY) / amp; // +1 = full above, -1 = full below
+          const inDisk = Math.abs(hFrac) < 0.20;
+          const diskBright = inDisk ? 0.26 : 0.16;
+
+          // ── Galactic disk glow ──
+          const dg = c.createLinearGradient(0, planeY - 32, 0, planeY + 32);
+          dg.addColorStop(0,    'rgba(75,140,255,0)');
+          dg.addColorStop(0.28, `rgba(75,140,255,${diskBright * 0.5})`);
+          dg.addColorStop(0.50, `rgba(110,175,255,${diskBright})`);
+          dg.addColorStop(0.72, `rgba(75,140,255,${diskBright * 0.5})`);
+          dg.addColorStop(1,    'rgba(75,140,255,0)');
+          c.fillStyle = dg; c.fillRect(0, planeY - 32, W, 64);
+
+          // ── Galactic mid-plane (dashed) ──
+          c.strokeStyle = 'rgba(93,170,255,0.26)'; c.lineWidth = 1;
+          c.setLineDash([5, 9]);
+          c.beginPath(); c.moveTo(padL, planeY); c.lineTo(W - padR, planeY); c.stroke();
+          c.setLineDash([]);
+
+          // ── Scrolling trajectory — 1 full cycle shown, current = right edge ──
+          // Full dim trail
+          c.beginPath();
+          for (let i = 0; i <= 180; i++) {
+            const frac = i / 180;
+            const tp = (ph - (1 - frac) + 1000) % 1;
+            const tx = padL + frac * gW;
+            const ty = planeY - amp * Math.sin(tp * Math.PI * 2);
+            i === 0 ? c.moveTo(tx, ty) : c.lineTo(tx, ty);
+          }
+          c.strokeStyle = 'rgba(178,139,255,0.18)'; c.lineWidth = 1.2; c.stroke();
+
+          // Bright recent trail (rightmost 25%)
+          c.beginPath();
+          for (let i = 0; i <= 45; i++) {
+            const frac = 0.75 + 0.25 * (i / 45);
+            const tp = (ph - (1 - frac) + 1000) % 1;
+            const tx = padL + frac * gW;
+            const ty = planeY - amp * Math.sin(tp * Math.PI * 2);
+            i === 0 ? c.moveTo(tx, ty) : c.lineTo(tx, ty);
+          }
+          c.strokeStyle = 'rgba(200,155,255,0.62)'; c.lineWidth = 1.8; c.stroke();
+
+          // ── Vertical displacement line (SS → plane) ──
+          const curX = padL + gW;
+          if (Math.abs(curY - planeY) > 6) {
+            c.strokeStyle = 'rgba(178,139,255,0.28)'; c.lineWidth = 1;
+            c.setLineDash([2, 4]);
+            c.beginPath(); c.moveTo(curX, curY); c.lineTo(curX, planeY); c.stroke();
+            c.setLineDash([]);
+          }
+
+          // ── Solar system dot ──
+          c.fillStyle = 'rgba(255,244,204,0.95)';
+          c.shadowColor = 'rgba(255,220,130,0.90)'; c.shadowBlur = 12;
+          c.beginPath(); c.arc(curX, curY, 4, 0, Math.PI * 2); c.fill();
+          c.shadowBlur = 0;
+
+          // ── Gravity force arrow ──
+          // Points toward the galactic plane (restoring force ∝ distance from plane)
+          const arrowX  = curX - 20;
+          const gravDir = Math.sign(planeY - curY); // +1 = above disk → arrow points down
+          const gravMag = Math.abs(hFrac);           // 0 at plane, 1 at max displacement
+          const arrowLen = gravMag * 40;
+          if (arrowLen > 5) {
+            const shaftStart = curY + gravDir * 6;           // clear the dot edge
+            const arrowTip   = curY + gravDir * arrowLen;
+            const headLen    = 5;
+            const alpha = Math.min(0.88, 0.30 + gravMag * 0.65);
+            const col = `rgba(255,148,45,${alpha})`;
+            // Shaft
+            c.strokeStyle = col; c.lineWidth = 1.8;
+            c.beginPath();
+            c.moveTo(arrowX, shaftStart);
+            c.lineTo(arrowX, arrowTip - gravDir * headLen * 1.4);
+            c.stroke();
+            // Arrowhead (triangle pointing toward disk)
+            c.fillStyle = col;
+            c.beginPath();
+            c.moveTo(arrowX,       arrowTip);
+            c.lineTo(arrowX - 4.5, arrowTip - gravDir * headLen * 1.8);
+            c.lineTo(arrowX + 4.5, arrowTip - gravDir * headLen * 1.8);
+            c.closePath(); c.fill();
+            // Label
+            const midY = (shaftStart + arrowTip) / 2;
+            c.font = '16px system-ui,sans-serif';
+            c.fillStyle = `rgba(255,152,50,${alpha * 0.82})`;
+            c.textAlign = 'right'; c.textBaseline = 'middle';
+            c.fillText('gravity force', arrowX - 5, midY);
+          }
+
+          // ── Labels ──
+          c.font = '18px system-ui,sans-serif';
+          // Galactic disk label
+          c.fillStyle = 'rgba(93,170,255,0.40)';
+          c.textAlign = 'left'; c.textBaseline = 'bottom';
+          c.fillText('galactic disk', padL + 4, planeY - 4);
+          // Above / below
+          c.fillStyle = 'rgba(180,192,225,0.30)';
+          c.textBaseline = 'top';
+          c.fillText('above', padL + 4, 5);
+          c.textBaseline = 'bottom';
+          c.fillText('below', padL + 4, H - 5);
+          // Period annotation
+          c.fillStyle = 'rgba(178,139,255,0.28)';
+          c.textAlign = 'center'; c.textBaseline = 'bottom';
+          c.fillText('← one bob ≈ 64 Myr →', padL + gW * 0.50, H - 5);
+
+          // ── Status text ──
+          let status, sCol;
+          if (inDisk) {
+            status = '';
+            sCol = 'rgba(115,190,255,0.72)';
+          } else if (hFrac > 0) {
+            status = `above disk  (${Math.round(hFrac * 100)} pc)`;
+            sCol = 'rgba(200,168,255,0.52)';
+          } else {
+            status = `below disk  (${Math.round(-hFrac * 100)} pc)`;
+            sCol = 'rgba(200,168,255,0.52)';
+          }
+          c.font = '18px system-ui,sans-serif';
+          c.fillStyle = sCol; c.textAlign = 'right'; c.textBaseline = 'top';
+          c.fillText(status, W - padR, 5);
+        }
+
+        function frame() {
+          if (!scrubbing) { phase = (phase + SPEED) % 1; slider.value = Math.round(phase * 100); }
+          draw(phase); keRafs.push(requestAnimationFrame(frame));
+        }
+        keRafs.push(requestAnimationFrame(frame));
+      }
+
+      // ── Boot ──────────────────────────────────────────────────────────
+      requestAnimationFrame(() => {
+        initKeDiagram3();
+        initKeDiagram4();
+        initKeDiagram2();
+        initKeDiagram1();
+        initKeDiagram5();
+      });
+    </script>
+  </body>
+</html>

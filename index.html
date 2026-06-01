@@ -1,0 +1,2142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#030711" />
+    <title>Oort Cloud</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Mono:wght@400;500&display=swap');
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #030711;
+        color: #eef6ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 48%, rgba(40, 73, 128, 0.16), transparent 36%),
+          radial-gradient(circle at 18% 22%, rgba(110, 174, 255, 0.075), transparent 24%),
+          #030711;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .hud {
+        position: fixed;
+        left: clamp(16px, 4vw, 40px);
+        top: clamp(16px, 4vw, 36px);
+        max-width: min(520px, calc(100vw - 32px));
+        z-index: 3;
+      }
+
+      .hud h1,
+      .hud p {
+        pointer-events: none;
+      }
+
+      .hud p a {
+        pointer-events: all;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(32px, 7vw, 86px);
+        line-height: 0.9;
+        letter-spacing: 0;
+        font-weight: 760;
+      }
+
+      p {
+        margin: 14px 0 0;
+        max-width: 38rem;
+        color: rgba(238, 246, 255, 0.72);
+        font-size: clamp(14px, 2.1vw, 18px);
+        line-height: 1.45;
+      }
+
+      .view-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        margin-top: 18px;
+        padding: 0 16px;
+        border: 1px solid rgba(180, 210, 255, 0.24);
+        background: rgba(8, 18, 36, 0.68);
+        color: #eef6ff;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        backdrop-filter: blur(12px);
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .button-row .view-button {
+        margin-top: 0;
+      }
+
+      .view-button:hover {
+        border-color: rgba(180, 210, 255, 0.46);
+        background: rgba(18, 38, 72, 0.76);
+      }
+
+      .view-button:focus-visible {
+        outline: 2px solid rgba(255, 224, 145, 0.95);
+        outline-offset: 3px;
+      }
+
+      .legend {
+        position: fixed;
+        left: clamp(16px, 4vw, 40px);
+        bottom: clamp(16px, 3vw, 30px);
+        display: grid;
+        gap: 8px;
+        max-width: min(430px, calc(100vw - 32px));
+        padding: 13px 14px;
+        border: 1px solid rgba(180, 210, 255, 0.16);
+        background: rgba(3, 7, 17, 0.52);
+        backdrop-filter: blur(12px);
+        color: rgba(238, 246, 255, 0.78);
+        font-size: 13px;
+        line-height: 1.3;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .legend div {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .swatch {
+        width: 28px;
+        height: 2px;
+        flex: 0 0 auto;
+        background: var(--swatch);
+        box-shadow: 0 0 12px var(--swatch);
+      }
+
+      .readout {
+        position: fixed;
+        right: clamp(14px, 3vw, 30px);
+        bottom: clamp(14px, 3vw, 30px);
+        display: grid;
+        grid-template-columns: repeat(4, minmax(82px, 1fr));
+        gap: 1px;
+        overflow: hidden;
+        border: 1px solid rgba(180, 210, 255, 0.16);
+        background: rgba(180, 210, 255, 0.12);
+        z-index: 2;
+      }
+
+      .metric {
+        min-height: 62px;
+        padding: 10px 12px;
+        background: rgba(3, 7, 17, 0.58);
+        backdrop-filter: blur(12px);
+      }
+
+      .metric span {
+        display: block;
+        color: rgba(238, 246, 255, 0.52);
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 7px;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .scale-note {
+        position: fixed;
+        left: 50%;
+        bottom: clamp(92px, 11vh, 128px);
+        transform: translateX(-50%);
+        max-width: min(420px, calc(100vw - 32px));
+        padding: 10px 13px;
+        border: 1px solid rgba(255, 226, 154, 0.22);
+        background: rgba(3, 7, 17, 0.62);
+        backdrop-filter: blur(12px);
+        color: rgba(255, 235, 170, 0.82);
+        font-size: 12px;
+        line-height: 1.3;
+        text-align: center;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      body.linear-active .scale-note,
+      body.spiral-active:not(.log-active) .scale-note {
+        display: none;
+      }
+
+      .spiral-note {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: clamp(92px, 11vh, 128px);
+        transform: translateX(-50%);
+        max-width: min(520px, calc(100vw - 32px));
+        padding: 10px 13px;
+        border: 1px solid rgba(178, 139, 255, 0.28);
+        background: rgba(3, 7, 17, 0.62);
+        backdrop-filter: blur(12px);
+        color: rgba(222, 211, 255, 0.88);
+        font-size: 12px;
+        line-height: 1.3;
+        text-align: center;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      body.spiral-active:not(.linear-active):not(.log-active) .spiral-note {
+        display: block;
+      }
+
+      body.spiral-active .legend {
+        border-color: rgba(178, 139, 255, 0.28);
+      }
+
+      @media (max-width: 640px) {
+        .hud {
+          max-width: calc(100vw - 28px);
+        }
+
+        p {
+          max-width: 22rem;
+        }
+
+        .legend {
+          display: none;
+        }
+
+        .button-row {
+          margin-top: 14px;
+        }
+
+        .readout {
+          left: 14px;
+          right: 14px;
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .scale-note {
+          bottom: 152px;
+        }
+
+        .spiral-note {
+          bottom: 152px;
+        }
+      }
+
+      /* ── Why It Formed screen ────────────────────────── */
+      .why-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        background: #030711;
+        overflow-y: auto;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.38s ease;
+      }
+
+      .why-screen.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .why-inner {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: clamp(20px, 5vw, 56px) clamp(16px, 4vw, 40px) 64px;
+      }
+
+      .why-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .why-back {
+        flex-shrink: 0;
+        margin-top: 5px;
+      }
+
+      .why-title {
+        margin: 0;
+        font-size: clamp(24px, 5.5vw, 52px);
+        font-weight: 760;
+        line-height: 1;
+      }
+
+      .why-lead {
+        max-width: 660px;
+        color: rgba(238, 246, 255, 0.7);
+        font-size: clamp(13px, 2vw, 16px);
+        line-height: 1.55;
+        margin: 0 0 30px;
+      }
+
+      .why-panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+
+      @media (max-width: 580px) {
+        .why-panels { grid-template-columns: 1fr; }
+      }
+
+      .why-panel {
+        border: 1px solid rgba(180, 210, 255, 0.13);
+        background: rgba(8, 18, 36, 0.55);
+        padding: 18px;
+        backdrop-filter: blur(12px);
+      }
+
+      .why-panel canvas {
+        display: block;
+        width: 100%;
+        height: 148px;
+        margin-bottom: 13px;
+      }
+
+      .why-panel h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #eef6ff;
+      }
+
+      .why-panel p {
+        margin: 0;
+        font-size: 13px;
+        color: rgba(238, 246, 255, 0.64);
+        line-height: 1.52;
+      }
+
+      .why-callout {
+        border: 1px solid rgba(178, 139, 255, 0.22);
+        background: rgba(178, 139, 255, 0.05);
+        padding: 16px 18px;
+        font-size: 13px;
+        color: rgba(222, 211, 255, 0.78);
+        line-height: 1.55;
+        max-width: 700px;
+        pointer-events: none;
+      }
+
+      /* ── Spiral Formation Screen HUD ──────────────────── */
+      .spiral-hud {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .spiral-header {
+        position: absolute;
+        left: clamp(14px, 4vw, 40px);
+        top: clamp(14px, 4vw, 36px);
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        pointer-events: auto;
+        max-width: min(480px, 58vw);
+      }
+
+      .spiral-title {
+        margin: 0;
+        font-size: clamp(17px, 3.2vw, 28px);
+        font-weight: 760;
+        line-height: 1;
+      }
+
+      .spiral-sub {
+        margin: 7px 0 0;
+        font-size: clamp(11px, 1.7vw, 13px);
+        color: rgba(238, 246, 255, 0.6);
+        line-height: 1.4;
+      }
+
+      .spiral-controls-bar {
+        position: absolute;
+        left: clamp(14px, 4vw, 40px);
+        bottom: clamp(14px, 3vw, 30px);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        pointer-events: auto;
+        max-width: 520px;
+      }
+
+      .form-time-slider {
+        flex: 1;
+        min-width: 120px;
+        cursor: pointer;
+        accent-color: rgba(178, 139, 255, 0.9);
+      }
+
+      .form-time-label {
+        font-size: 12px;
+        color: rgba(238, 246, 255, 0.55);
+        min-width: 46px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .form-annotation {
+        position: absolute;
+        right: clamp(14px, 4vw, 40px);
+        bottom: clamp(14px, 3vw, 30px);
+        max-width: min(260px, 36vw);
+        padding: 11px 14px;
+        border: 1px solid rgba(178, 139, 255, 0.22);
+        background: rgba(3, 7, 17, 0.72);
+        backdrop-filter: blur(12px);
+        font-size: 12px;
+        color: rgba(222, 211, 255, 0.82);
+        line-height: 1.45;
+        pointer-events: none;
+      }
+
+      .galactic-label {
+        position: absolute;
+        right: clamp(14px, 4vw, 40px);
+        top: clamp(14px, 4vw, 36px);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(180, 210, 255, 0.16);
+        background: rgba(3, 7, 17, 0.55);
+        backdrop-filter: blur(12px);
+        font-size: 12px;
+        color: rgba(238, 246, 255, 0.7);
+        pointer-events: auto;
+        user-select: none;
+        cursor: pointer;
+      }
+
+      .spiral-view-pill {
+        position: absolute;
+        right: clamp(14px, 4vw, 40px);
+        top: clamp(52px, 9vw, 72px);
+        display: flex;
+        border: 1px solid rgba(178, 139, 255, 0.28);
+        border-radius: 6px;
+        overflow: hidden;
+        pointer-events: auto;
+        background: rgba(3, 7, 17, 0.55);
+        backdrop-filter: blur(12px);
+      }
+
+      .spiral-view-btn {
+        padding: 7px 13px;
+        font-size: 11px;
+        font-family: inherit;
+        background: transparent;
+        border: none;
+        color: rgba(222, 211, 255, 0.55);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        white-space: nowrap;
+      }
+
+      .spiral-view-btn.active {
+        background: rgba(178, 139, 255, 0.22);
+        color: rgba(222, 211, 255, 0.96);
+      }
+
+      .spiral-view-btn:not(.active):hover {
+        background: rgba(178, 139, 255, 0.10);
+        color: rgba(222, 211, 255, 0.75);
+      }
+
+      @media (max-width: 640px) {
+        .spiral-header { max-width: calc(100vw - 56px); }
+        .form-annotation { display: none; }
+        .galactic-label { display: none; }
+        .spiral-view-pill { display: none; }
+      }
+
+      /* explanation page styles live in explain.html */
+
+      #galPlaneBtn.gal-active {
+        border-color: rgba(93,170,255,0.65);
+        background: rgba(93,170,255,0.14);
+        color: rgba(180,225,255,0.97);
+      }
+
+    </style>
+  </head>
+  <body>
+    <canvas id="space" aria-label="Animated point cloud sphere representing the Oort Cloud"></canvas>
+    <section class="hud" aria-label="Simulation title">
+      <h1>Oort Cloud</h1>
+      <p>A theoretical comet reservoir at the edges of our solar system. Based on a 2025 research paper. <a href="https://arxiv.org/html/2502.11252v1" target="_blank" rel="noopener" style="color:inherit;text-underline-offset:3px">"A spiral structure in the inner Oort cloud."</a></p>
+      <div class="button-row">
+        <button id="innerSpanButton" class="view-button" type="button">View Inner Span</button>
+        <button id="linearZoomButton" class="view-button" type="button">Zoom to Sun</button>
+<button id="viewButton" style="display:none" aria-hidden="true"></button>
+<button id="spiralButton" class="view-button" type="button" style="border-color:rgba(178,139,255,0.36);color:rgba(222,211,255,0.92)">Why a spiral?</button>
+        <button id="galPlaneBtn" class="view-button" type="button" style="border-color:rgba(93,170,255,0.30);color:rgba(160,210,255,0.88)">View Galactic Plane</button>
+      </div>
+    </section>
+    <section class="legend" aria-label="Simulation legend">
+      <div><span class="swatch" style="--swatch: rgba(120, 172, 255, 0.9)"></span>Outer Oort Cloud: sparse spherical halo, about 20,000-100,000 AU.</div>
+      <div><span class="swatch" style="--swatch: rgba(178, 139, 255, 0.95)"></span>Inner Oort structure: theoretical broad warped two-arm disk from recent simulations.</div>
+    </section>
+    <section class="readout" aria-label="Simulation readout">
+      <div class="metric">
+        <span>Sample</span>
+        <strong id="count">0</strong>
+      </div>
+      <div class="metric">
+        <span>Outer edge</span>
+        <strong>~100k AU</strong>
+      </div>
+      <div class="metric">
+        <span>Scale</span>
+        <strong id="scaleMode">linear</strong>
+      </div>
+      <div class="metric">
+        <span>Inner span</span>
+        <strong>~15k AU</strong>
+      </div>
+    </section>
+    <div id="scaleNote" class="scale-note">planetary solar system &lt; 1 px at this scale</div>
+    <div class="spiral-note">planetary solar system &lt; 1 px at this scale</div>
+
+    <div id="spiralScreen" class="why-screen" style="overflow:hidden" aria-hidden="true">
+      <canvas id="spiralCanvas" style="position:absolute;inset:0;display:block;width:100%;height:100%"></canvas>
+      <div class="spiral-hud">
+        <div class="spiral-header">
+          <button id="backFromSpiral" class="view-button" type="button" style="flex-shrink:0;margin-top:2px">← Back</button>
+          <div>
+            <h2 class="spiral-title">Inner Cloud Spiral Formation</h2>
+            <p class="spiral-sub">Galactic tidal torque winds Neptune-scattered comets into a two-arm spiral — drag to rotate</p>
+          </div>
+        </div>
+        <label class="galactic-label" id="galPlaneLabel" for="showGalPlane">
+          <input type="checkbox" id="showGalPlane" checked style="accent-color:rgba(93,170,255,0.9);margin:0;cursor:pointer">
+          <span style="display:inline-block;width:18px;height:2px;background:rgba(93,170,255,0.55)"></span>
+          Galactic plane
+        </label>
+        <div class="spiral-view-pill">
+          <button id="sphereViewBtn" class="spiral-view-btn active" type="button">3D Sphere</button>
+          <button id="polarViewBtn"  class="spiral-view-btn"        type="button">Spiral Map</button>
+        </div>
+        <div class="spiral-controls-bar">
+          <button id="formPlayBtn" class="view-button" type="button">▶ Play</button>
+          <input type="range" id="formTimeSlider" class="form-time-slider" min="0" max="100" value="0">
+          <span id="formTimeLabel" class="form-time-label">0.0 Gyr</span>
+          <button id="kozaiExplainBtn" class="view-button" type="button" style="border-color:rgba(178,139,255,0.36);color:rgba(222,211,255,0.85);flex-shrink:0;text-decoration:none" onclick="location.href='explain.html'">← Explanation</button>
+        </div>
+        <div id="formAnnotation" class="form-annotation">Comets scattered outward by Neptune, clustered near the ecliptic plane. Galactic tide has not yet had time to act.</div>
+      </div>
+    </div>
+
+    <!-- explanation page is now explain.html -->
+
+    <script>
+      const canvas = document.querySelector("#space");
+      const ctx = canvas.getContext("2d");
+      const countEl = document.querySelector("#count");
+      const scaleModeEl = document.querySelector("#scaleMode");
+      const viewButton = document.querySelector("#viewButton");
+      const linearZoomButton = document.querySelector("#linearZoomButton");
+      const innerSpanButton = document.querySelector("#innerSpanButton");
+      const scaleNoteEl = document.querySelector("#scaleNote");
+      const particles = [];
+      const innerFocusParticles = [];
+      const innerFocusDenseParticles = []; // extra pool, fades in as zoom increases
+      const paths = [];
+      const spiralGuides = [makeInnerSpiralGuide(0), makeInnerSpiralGuide(Math.PI)];
+      const planets = [
+        { name: "Mercury", au: 0.39, period: 88, size: 2.1, color: "rgba(190, 184, 174, 0.95)" },
+        { name: "Venus", au: 0.72, period: 225, size: 3.2, color: "rgba(238, 203, 132, 0.95)" },
+        { name: "Earth", au: 1, period: 365, size: 3.4, color: "rgba(112, 174, 255, 0.98)" },
+        { name: "Mars", au: 1.52, period: 687, size: 2.7, color: "rgba(235, 130, 88, 0.95)" },
+        { name: "Jupiter", au: 5.2, period: 4333, size: 6.3, color: "rgba(232, 187, 135, 0.95)" },
+        { name: "Saturn", au: 9.58, period: 10759, size: 5.6, color: "rgba(232, 211, 154, 0.95)" },
+        { name: "Uranus", au: 19.2, period: 30687, size: 4.5, color: "rgba(144, 223, 229, 0.95)" },
+        { name: "Neptune", au: 30.1, period: 60190, size: 4.4, color: "rgba(92, 141, 255, 0.95)" }
+      ];
+      const outerCount = 9000;
+      const innerCount = 4200;
+      const kuiperCount = 120;
+      const asteroidCount = 280;
+      const innerFocusCount = 14000;
+      const innerFocusDenseCount = 22000; // concentrated at 500-4000 AU for high-zoom view
+      const AU_MAX = 100000;
+      let width = 0;
+      let height = 0;
+      let scale = 1;
+      let pointerX = 0;
+      let pointerY = 0;
+      let rotationYaw = 0;
+      let rotationPitch = 0;
+      let dragging = false;
+      let dragX = 0;
+      let dragY = 0;
+      let velYaw = 0;
+      let velPitch = 0;
+      const INERTIA = 0.88;
+      let targetView = "oort";
+      let zoom = 0;
+      let exponentialZoomAnimating = false;
+      let linearZoomStart = null;
+      let linearZoomActive = false;
+      let linearZoom = 1;
+      let linearZoomFrom = 1;
+      let linearZoomTo = 1;
+      let linearZoomPreset = "solar";
+      let particleLimit = Infinity;
+      let pinchDistance = null;
+      const innerSpiralEnabled = true;
+      const LINEAR_ZOOM_TARGET = AU_MAX / 30;
+      const INNER_SPAN_TARGET = AU_MAX / 15000;
+      const LINEAR_ZOOM_DURATION = 6500;
+
+      countEl.textContent = `${(outerCount + innerCount + kuiperCount + asteroidCount).toLocaleString()} pts`;
+      let prevInnerFocusActive = false;
+
+      function updateParticleLimit() {
+        const pixels = window.innerWidth * window.innerHeight;
+        particleLimit = pixels < 550000 ? 9000 : pixels < 1100000 ? 11500 : Infinity;
+      }
+
+      function visualRadius(au) {
+        return au / AU_MAX;
+      }
+
+      function logRadius(au) {
+        return Math.log10(Math.max(1, au)) / Math.log10(AU_MAX);
+      }
+
+      function radiusForAU(au) {
+        return visualRadius(au) * (1 - zoom) + logRadius(au) * zoom;
+      }
+
+      function easeInOut(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      }
+
+      function updateLinearZoom(time) {
+        if (!linearZoomActive) {
+          return;
+        }
+
+        if (linearZoomStart === null) {
+          linearZoomStart = time;
+        }
+
+        const progress = Math.min(1, (time - linearZoomStart) / LINEAR_ZOOM_DURATION);
+        const easedProgress = easeInOut(progress);
+        const logFrom = Math.log(Math.max(1, linearZoomFrom));
+        const logTo = Math.log(Math.max(1, linearZoomTo));
+        linearZoom = Math.exp(logFrom + (logTo - logFrom) * easedProgress);
+
+        if (progress >= 1) {
+          linearZoomActive = false;
+          linearZoomStart = null;
+          linearZoom = linearZoomTo;
+          updateLinearButtonLabel();
+          syncScaleMode();
+        }
+      }
+
+      function currentParticleBudget() {
+        if (linearZoomPreset === "inner" && (linearZoomActive || linearZoom > 1.05)) {
+          return Math.min(particleLimit, innerFocusCount + innerCount + kuiperCount);
+        }
+        if (linearZoom <= 1.05) return particleLimit;
+        if (linearZoom > 900) return kuiperCount + asteroidCount;
+        if (linearZoom > 420) return 500;
+        if (linearZoom > 120) return 1400;
+        if (linearZoom > 30) return 3200;
+        return Math.min(particleLimit, 6000);
+      }
+
+      function updateLinearButtonLabel() {
+        if (linearZoomActive && linearZoomPreset === "solar") {
+          linearZoomButton.textContent = linearZoomTo > linearZoomFrom ? "Zooming In..." : "Zooming Out...";
+        } else {
+          linearZoomButton.textContent = linearZoom > LINEAR_ZOOM_TARGET * 0.92 ? "Zoom Out" : "Zoom to Sun";
+        }
+
+        if (linearZoomActive && linearZoomPreset === "inner") {
+          innerSpanButton.textContent = linearZoomTo > linearZoomFrom ? "Zooming In..." : "Zooming Out...";
+        } else {
+          innerSpanButton.textContent = linearZoom > INNER_SPAN_TARGET * 0.92 ? "View Outer Span" : "View Inner Span";
+        }
+      }
+
+      function syncScaleMode() {
+        if (linearZoom > 1.05 || linearZoomActive) {
+          scaleModeEl.textContent = `${Math.round(linearZoom).toLocaleString()}x linear`;
+        } else {
+          scaleModeEl.textContent = zoom > 0.05 ? "exp zoom" : "linear";
+        }
+        scaleNoteEl.textContent = zoom > 0.05
+          ? "zooming exponentially — not to scale"
+          : "planetary solar system < 1 px at this scale";
+      }
+
+      function applyManualZoom(delta) {
+        if (linearZoomActive) {
+          linearZoomActive = false;
+          linearZoomStart = null;
+        }
+
+        if (exponentialZoomAnimating || zoom > 0) {
+          exponentialZoomAnimating = false;
+          zoom = 0;
+          targetView = "oort";
+          viewButton.textContent = "Exponential Zoom";
+        }
+
+        const scrollCap = linearZoom > INNER_SPAN_TARGET ? LINEAR_ZOOM_TARGET : INNER_SPAN_TARGET;
+        linearZoom = Math.min(scrollCap, Math.max(1, linearZoom * Math.exp(-delta * 2)));
+        linearZoomFrom = linearZoom;
+        linearZoomTo = linearZoom;
+        linearZoomPreset = linearZoom > INNER_SPAN_TARGET * 0.5 ? "inner" : "solar";
+        updateLinearButtonLabel();
+        syncScaleMode();
+        return true;
+      }
+
+      function biasedRadius(innerAu, outerAu, exponent) {
+        return innerAu + Math.pow(Math.random(), exponent) * (outerAu - innerAu);
+      }
+
+      function randomSphericalShell(innerAu, outerAu, type) {
+        const theta = Math.random() * Math.PI * 2;
+        const u = Math.random() * 2 - 1;
+        const radiusAu = biasedRadius(innerAu, outerAu, 2.25);
+        const root = Math.sqrt(1 - u * u);
+
+        return {
+          ux: root * Math.cos(theta),
+          uy: u,
+          uz: root * Math.sin(theta),
+          au: radiusAu,
+          type,
+          size: 0.28 + Math.random() * 0.76,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.16 + Math.random() * 0.34,
+          tint: Math.random()
+        };
+      }
+
+      function randomFlattenedCloud(innerAu, outerAu, type) {
+        const theta = Math.random() * Math.PI * 2;
+        const radiusAu = biasedRadius(innerAu, outerAu, type === "kuiper" ? 1 : 1.75);
+        const oval = 1 + (Math.random() - 0.5) * 0.1;
+        const thickness = (Math.random() - 0.5) * (type === "kuiper" ? 0.035 : 0.14);
+
+        return {
+          ux: Math.cos(theta) * oval,
+          uy: thickness,
+          uz: Math.sin(theta),
+          au: radiusAu,
+          type,
+          size: type === "kuiper" ? 0.35 + Math.random() * 0.65 : 0.38 + Math.random() * 0.95,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.24 + Math.random() * 0.5,
+          tint: Math.random()
+        };
+      }
+
+      function randomAsteroidBelt() {
+        const theta = Math.random() * Math.PI * 2;
+        const radiusAu = biasedRadius(2.2, 3.2, 1);
+        const oval = 1 + (Math.random() - 0.5) * 0.14;
+        const thickness = (Math.random() - 0.5) * 0.028;
+        return {
+          ux: Math.cos(theta) * oval,
+          uy: thickness,
+          uz: Math.sin(theta),
+          au: radiusAu,
+          type: "asteroid",
+          size: 0.32 + Math.random() * 0.62,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.5 + Math.random() * 0.8,
+          tint: Math.random()
+        };
+      }
+
+      function randomInnerSpiralPoint() {
+        const arm = Math.random() < 0.5 ? 0 : Math.PI;
+        const radiusAu = biasedRadius(400, 9000, 0.68);
+        const t = (radiusAu - 400) / 8600;
+        const sweep = 0.86 * Math.PI;
+        const theta = arm - sweep / 2 + t * sweep + (Math.random() - 0.5) * (0.72 + t * 0.78);
+        const armWidth = 0.48 + t * 0.62;
+        const radialFuzz = 1 + (Math.random() - 0.5) * armWidth;
+        const eclipticTilt = 60.2 * Math.PI / 180;
+        const kozaiLift = t * 0.75 * (arm === 0 ? 1 : -1);
+        const eclipticY = Math.sin(theta) * Math.sin(eclipticTilt) * 0.04;
+        const endTwist = Math.sin((t - 0.5) * Math.PI) * Math.sin(theta + arm) * (0.02 + t * 0.10);
+        const warp = Math.sin(theta * 0.9 + t * Math.PI) * (0.01 + t * 0.08);
+        const thickness = kozaiLift + eclipticY + endTwist + warp + (Math.random() - 0.5) * (0.10 + t * 0.18 + Math.sin(t * Math.PI) * 0.12);
+        const x0 = Math.cos(theta) * radialFuzz;
+        const z0 = Math.sin(theta) * radialFuzz;
+
+        return {
+          ux: x0,
+          uy: thickness,
+          uz: z0,
+          au: radiusAu,
+          type: "spiral",
+          size: 0.22 + Math.random() * 0.62,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.18 + Math.random() * 0.38,
+          tint: Math.random()
+        };
+      }
+
+      function randomInnerFocusPoint() {
+        const arm = Math.random() < 0.5 ? 0 : Math.PI;
+        const radiusAu = biasedRadius(500, 15000, 0.62);
+        const t = (radiusAu - 500) / 14500;
+        const sweep = 0.9 * Math.PI;
+        const theta = arm - sweep / 2 + t * sweep + (Math.random() - 0.5) * (0.95 + t * 1.15);
+        const armWidth = 0.82 + t * 1.05;
+        const radialFuzz = 1 + (Math.random() - 0.5) * armWidth;
+        const eclipticTilt = 60.2 * Math.PI / 180;
+        const kozaiLift = t * 0.75 * (arm === 0 ? 1 : -1);
+        const eclipticY = Math.sin(theta) * Math.sin(eclipticTilt) * 0.04;
+        const endTwist = Math.sin((t - 0.48) * Math.PI) * Math.sin(theta + arm) * (0.02 + t * 0.12);
+        const warp = Math.sin(theta * 0.82 + t * Math.PI * 1.1) * (0.01 + t * 0.09);
+        const thickness = kozaiLift + eclipticY + endTwist + warp + (Math.random() - 0.5) * (0.12 + t * 0.22 + Math.sin(t * Math.PI) * 0.14);
+
+        return {
+          ux: Math.cos(theta) * radialFuzz,
+          uy: thickness,
+          uz: Math.sin(theta) * radialFuzz,
+          au: radiusAu,
+          type: "innerFocus",
+          size: 0.18 + Math.random() * 0.48,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.16 + Math.random() * 0.34,
+          tint: Math.random()
+        };
+      }
+
+      // Dense inner-focus particles for high-zoom view.
+      // biasedRadius with bias > 1 concentrates toward the minimum (inner edge ~500 AU),
+      // so as you zoom past INNER_SPAN_TARGET the visible window stays populated.
+      function randomInnerFocusDensePoint() {
+        const arm = Math.random() < 0.5 ? 0 : Math.PI;
+        const radiusAu = biasedRadius(500, 4500, 2.4); // concentrated ~500-1800 AU
+        const t = (radiusAu - 500) / 14500;            // same t-scale as regular for matching shape
+        const sweep = 0.9 * Math.PI;
+        const theta = arm - sweep / 2 + t * sweep + (Math.random() - 0.5) * (0.95 + t * 1.15);
+        const armWidth = 0.82 + t * 1.05;
+        const radialFuzz = 1 + (Math.random() - 0.5) * armWidth;
+        const eclipticTilt = 60.2 * Math.PI / 180;
+        const kozaiLift = t * 0.75 * (arm === 0 ? 1 : -1);
+        const eclipticY = Math.sin(theta) * Math.sin(eclipticTilt) * 0.04;
+        const endTwist = Math.sin((t - 0.48) * Math.PI) * Math.sin(theta + arm) * (0.02 + t * 0.12);
+        const warp = Math.sin(theta * 0.82 + t * Math.PI * 1.1) * (0.01 + t * 0.09);
+        const thickness = kozaiLift + eclipticY + endTwist + warp +
+          (Math.random() - 0.5) * (0.12 + t * 0.22 + Math.sin(t * Math.PI) * 0.14);
+        return {
+          ux: Math.cos(theta) * radialFuzz,
+          uy: thickness,
+          uz: Math.sin(theta) * radialFuzz,
+          au: radiusAu,
+          type: "innerFocusDense",
+          size: 0.18 + Math.random() * 0.44,
+          phase: Math.random() * Math.PI * 2,
+          speed: 0.16 + Math.random() * 0.34,
+          tint: Math.random()
+        };
+      }
+
+      function makeCometPath(aphelionAu, inclination, angle) {
+        const points = [];
+        const cosI = Math.cos(inclination);
+        const sinI = Math.sin(inclination);
+        const cosA = Math.cos(angle);
+        const sinA = Math.sin(angle);
+
+        for (let i = 0; i <= 150; i += 1) {
+          const t = i / 150;
+          const trueAnomaly = (t * 2 - 1) * Math.PI;
+          const au = 5 + Math.pow(Math.abs(Math.sin(t * Math.PI)), 0.72) * (aphelionAu - 5);
+          const localX = Math.cos(trueAnomaly);
+          const localZ = Math.sin(trueAnomaly) * 0.18;
+          const tiltedY = localZ * sinI;
+          const tiltedZ = localZ * cosI;
+
+          points.push({
+            ux: localX * cosA - tiltedZ * sinA,
+            uy: tiltedY,
+            uz: localX * sinA + tiltedZ * cosA,
+            au
+          });
+        }
+
+        return points;
+      }
+
+      function makeInnerSpiralGuide(arm) {
+        const points = [];
+        const sweep = 0.86 * Math.PI;
+        const eclipticTilt = 60.2 * Math.PI / 180;
+
+        for (let i = 0; i <= 120; i += 1) {
+          const t = i / 120;
+          const au = 400 + t * 8600;
+          const theta = arm - sweep / 2 + t * sweep;
+          const kozaiLift = t * 0.75 * (arm === 0 ? 1 : -1);
+          const eclipticY = Math.sin(theta) * Math.sin(eclipticTilt) * 0.04;
+          const endTwist = Math.sin((t - 0.5) * Math.PI) * Math.sin(theta + arm) * (0.02 + t * 0.10);
+          const warp = Math.sin(theta * 0.9 + t * Math.PI) * (0.01 + t * 0.08);
+
+          points.push({
+            ux: Math.cos(theta),
+            uy: kozaiLift + eclipticY + endTwist + warp,
+            uz: Math.sin(theta),
+            au
+          });
+        }
+
+        return points;
+      }
+
+      function makeParticles() {
+        particles.length = 0;
+        paths.length = 0;
+
+        for (let i = 0; i < outerCount; i += 1) {
+          particles.push(randomSphericalShell(20000, 100000, "outer"));
+        }
+
+        for (let i = 0; i < innerCount; i += 1) {
+          particles.push(randomInnerSpiralPoint());
+        }
+
+        for (let i = 0; i < kuiperCount; i += 1) {
+          particles.push(randomFlattenedCloud(30, 55, "kuiper"));
+        }
+
+        for (let i = 0; i < asteroidCount; i += 1) {
+          particles.push(randomAsteroidBelt());
+        }
+
+        innerFocusParticles.length = 0;
+        for (let i = 0; i < innerFocusCount; i += 1) {
+          innerFocusParticles.push(randomInnerFocusPoint());
+        }
+
+        innerFocusDenseParticles.length = 0;
+        for (let i = 0; i < innerFocusDenseCount; i += 1) {
+          innerFocusDenseParticles.push(randomInnerFocusDensePoint());
+        }
+
+        paths.push(makeCometPath(35000, 1.0, 0.4));
+        paths.push(makeCometPath(70000, 2.1, 2.2));
+        paths.push(makeCometPath(52000, 0.35, -1.1));
+      }
+
+      function pointFromUnit(item) {
+        const radius = radiusForAU(item.au);
+        const flatten = item.type === "inner" ? 0.5 : item.type === "kuiper" ? 0.08 : item.type === "asteroid" ? 0.06 : 1;
+
+        return {
+          x: item.ux * radius,
+          y: item.uy * radius * flatten,
+          z: item.uz * radius
+        };
+      }
+
+      function project(point, time, cx, cy, focus) {
+        const p = rotate(point, time);
+        if (focus - p.z <= 0.08) return null;
+
+        const depth = focus / (focus - p.z);
+        if (!Number.isFinite(depth) || depth <= 0 || depth > 20) return null;
+
+        return {
+          x: cx + p.x * scale * depth,
+          y: cy + p.y * scale * depth,
+          depth,
+          z: p.z
+        };
+      }
+
+      function drawOrbit(points, time, cx, cy, focus, color) {
+        ctx.beginPath();
+        let moved = false;
+
+        for (let i = 0; i < points.length; i += 1) {
+          const point = points[i].au ? pointFromUnit(points[i]) : points[i];
+          const p = project(point, time, cx, cy, focus);
+          if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+
+          if (!moved) {
+            ctx.moveTo(p.x, p.y);
+            moved = true;
+          } else {
+            ctx.lineTo(p.x, p.y);
+          }
+        }
+
+        if (!moved) return;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 8]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function resize() {
+        updateParticleLimit();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        scale = Math.min(width, height) * 0.43;
+      }
+
+      function rotate(point, time) {
+        const yaw = pointerX * 0.08 + rotationYaw;
+        const pitch = 0.42 + pointerY * 0.04 + rotationPitch;
+        const roll = time * 0.000032;
+
+        let x = point.x;
+        let y = point.y;
+        let z = point.z;
+
+        const cy = Math.cos(yaw);
+        const sy = Math.sin(yaw);
+        const x1 = x * cy - z * sy;
+        const z1 = x * sy + z * cy;
+
+        const cp = Math.cos(pitch);
+        const sp = Math.sin(pitch);
+        const y2 = y * cp - z1 * sp;
+        const z2 = y * sp + z1 * cp;
+
+        const cr = Math.cos(roll);
+        const sr = Math.sin(roll);
+        const x3 = x1 * cr - y2 * sr;
+        const y3 = x1 * sr + y2 * cr;
+
+        return { x: x3, y: y3, z: z2 };
+      }
+
+      function draw(time) {
+        // Apply rotation inertia when not actively dragging
+        if (!dragging) {
+          velYaw   *= INERTIA;
+          velPitch *= INERTIA;
+          rotationYaw   += velYaw;
+          rotationPitch  = Math.max(-1.25, Math.min(1.25, rotationPitch + velPitch));
+        }
+
+        updateLinearZoom(time);
+        if (exponentialZoomAnimating) {
+          const targetZoom = targetView === "solar" ? 1 : 0;
+          zoom += (targetZoom - zoom) * 0.045;
+          if (Math.abs(zoom - targetZoom) < 0.002) {
+            zoom = targetZoom;
+            exponentialZoomAnimating = false;
+          }
+        }
+        scale = Math.min(width, height) * 0.43 * linearZoom;
+        syncScaleMode();
+        document.body.classList.toggle("linear-active", linearZoom > 1.05 || linearZoomActive);
+        document.body.classList.toggle("log-active", zoom > 0.08);
+
+        ctx.clearRect(0, 0, width, height);
+
+        const cx = width / 2;
+        const cy = height / 2 + Math.min(42, height * 0.05);
+        const focus = 2.65;
+        const innerFocusActive = linearZoomPreset === "inner" && (linearZoomActive || linearZoom > 1.05);
+        if (innerFocusActive !== prevInnerFocusActive) {
+          prevInnerFocusActive = innerFocusActive;
+          countEl.textContent = innerFocusActive
+            ? `${(innerFocusCount + innerCount + kuiperCount).toLocaleString()} pts`
+            : `${(outerCount + innerCount + kuiperCount + asteroidCount).toLocaleString()} pts`;
+        }
+        const sorted = [];
+
+        const gradientRadius = linearZoom > 900 ? 420 : linearZoom > 1.05 ? Math.min(Math.max(width, height), scale * 0.08) : scale * 1.28;
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, gradientRadius);
+        gradient.addColorStop(0, "rgba(93, 170, 255, 0.10)");
+        gradient.addColorStop(0.52, "rgba(93, 170, 255, 0.035)");
+        gradient.addColorStop(1, "rgba(93, 170, 255, 0)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(cx, cy, gradientRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawOrbitCircle(30, time, cx, cy, focus, `rgba(255, 215, 126, ${0.12 + zoom * 0.14})`);
+        drawOrbitCircle(55, time, cx, cy, focus, `rgba(255, 215, 126, ${0.16 + zoom * 0.12})`);
+        if (!innerFocusActive && linearZoom > 180) {
+          const asteroidRingAlpha = Math.min(0.3, (linearZoom - 180) / 500 * 0.3);
+          drawOrbitCircle(2.2, time, cx, cy, focus, `rgba(200, 165, 100, ${asteroidRingAlpha})`);
+          drawOrbitCircle(3.2, time, cx, cy, focus, `rgba(200, 165, 100, ${asteroidRingAlpha})`);
+        }
+        if (innerFocusActive) {
+          drawOrbitCircle(2000, time, cx, cy, focus, `rgba(178, 139, 255, ${0.22 * (1 - zoom * 0.24)})`);
+          drawOrbitCircle(15000, time, cx, cy, focus, `rgba(215, 196, 255, ${0.2 * (1 - zoom * 0.18)})`);
+        } else {
+          drawOuterHalo(cx, cy);
+          if (linearZoom < 90) {
+            drawOrbitCircle(2000, time, cx, cy, focus, `rgba(114, 235, 218, ${0.28 * (1 - zoom * 0.28)})`);
+            drawOrbitCircle(20000, time, cx, cy, focus, `rgba(114, 235, 218, ${0.18 * (1 - zoom * 0.32)})`);
+            drawOrbitCircle(100000, time, cx, cy, focus, `rgba(120, 172, 255, ${0.16 * (1 - zoom * 0.45)})`);
+          }
+        }
+
+        if (!innerFocusActive && linearZoom < 90) {
+          if (innerSpiralEnabled) {
+            for (const guide of spiralGuides) {
+              drawOrbit(guide, time, cx, cy, focus, "rgba(255, 217, 126, 0.28)");
+            }
+          }
+
+          for (const path of paths) {
+            drawOrbit(path, time, cx, cy, focus, `rgba(255, 235, 170, ${0.18 * (1 - zoom * 0.25)})`);
+          }
+        }
+
+        const budget = currentParticleBudget();
+        if (budget > 0) {
+          if (innerFocusActive) {
+            const baseBudget = Math.min(budget, Math.max(0, particles.length - outerCount));
+            const baseStep = Math.max(1, Math.ceil(Math.max(1, particles.length - outerCount) / Math.max(1, baseBudget)));
+            const focusBudget = Math.max(0, budget - baseBudget);
+            const focusStep = Math.max(1, Math.ceil(innerFocusParticles.length / Math.max(1, focusBudget)));
+
+            let baseSeen = 0;
+            for (let particleIndex = 0; particleIndex < particles.length; particleIndex += 1) {
+              const particle = particles[particleIndex];
+              if (particle.type === "outer") continue;
+              if (baseSeen % baseStep !== 0) {
+                baseSeen += 1;
+                continue;
+              }
+
+              const drift = Math.sin(time * 0.00012 * particle.speed + particle.phase) * 0.01;
+              const base = pointFromUnit(particle);
+              const p = rotate({
+                x: base.x + drift,
+                y: base.y,
+                z: base.z - drift
+              }, time);
+              sorted.push({ particle, p });
+              baseSeen += 1;
+            }
+
+            let focusSeen = 0;
+            for (let particleIndex = 0; particleIndex < innerFocusParticles.length; particleIndex += 1) {
+              const particle = innerFocusParticles[particleIndex];
+              if (focusSeen % focusStep !== 0) {
+                focusSeen += 1;
+                continue;
+              }
+
+              const drift = Math.sin(time * 0.00012 * particle.speed + particle.phase) * 0.008;
+              const base = pointFromUnit(particle);
+              const p = rotate({
+                x: base.x + drift,
+                y: base.y,
+                z: base.z - drift
+              }, time);
+              sorted.push({ particle, p });
+              focusSeen += 1;
+            }
+
+            // Dense particles: fade in as zoom climbs past INNER_SPAN_TARGET.
+            // denseT=0 at INNER_SPAN_TARGET, =1 at 5×INNER_SPAN_TARGET.
+            // Step-based subsampling keeps the count proportional to denseT.
+            if (linearZoom > INNER_SPAN_TARGET) {
+              const denseT = Math.min(1, (linearZoom - INNER_SPAN_TARGET) / (INNER_SPAN_TARGET * 4));
+              const denseDrawCount = Math.max(1, Math.round(innerFocusDenseCount * denseT));
+              const denseStep = Math.max(1, Math.ceil(innerFocusDenseCount / denseDrawCount));
+              let denseSeen = 0;
+              for (let i = 0; i < innerFocusDenseParticles.length; i += 1) {
+                if (denseSeen % denseStep !== 0) { denseSeen += 1; continue; }
+                const particle = innerFocusDenseParticles[i];
+                const drift = Math.sin(time * 0.00012 * particle.speed + particle.phase) * 0.008;
+                const base = pointFromUnit(particle);
+                const p = rotate({ x: base.x + drift, y: base.y, z: base.z - drift }, time);
+                sorted.push({ particle, p, denseAlpha: denseT });
+                denseSeen += 1;
+              }
+            }
+          } else if (linearZoom > 120) {
+            const solarStart = outerCount + innerCount;
+            for (let i = solarStart; i < particles.length; i += 1) {
+              const particle = particles[i];
+              const drift = Math.sin(time * 0.00012 * particle.speed + particle.phase) * 0.01;
+              const base = pointFromUnit(particle);
+              const p = rotate({ x: base.x + drift, y: base.y, z: base.z - drift }, time);
+              sorted.push({ particle, p });
+            }
+          } else {
+            const step = Math.max(1, Math.ceil(particles.length / budget));
+            for (let particleIndex = 0; particleIndex < particles.length; particleIndex += step) {
+              const particle = particles[particleIndex];
+              const drift = Math.sin(time * 0.00012 * particle.speed + particle.phase) * (particle.type === "outer" ? 0.006 : 0.01);
+              const base = pointFromUnit(particle);
+              const p = rotate({
+                x: base.x + drift,
+                y: base.y,
+                z: base.z - drift
+              }, time);
+              sorted.push({ particle, p });
+            }
+          }
+        }
+
+        if (linearZoom < 80) {
+          sorted.sort((a, b) => a.p.z - b.p.z);
+        }
+
+        for (const item of sorted) {
+          if (focus - item.p.z <= 0.08) continue;
+
+          const depth = focus / (focus - item.p.z);
+          if (!Number.isFinite(depth) || depth <= 0 || depth > 20) continue;
+
+          const x = cx + item.p.x * scale * depth;
+          const y = cy + item.p.y * scale * depth;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+
+          const fade = item.particle.type === "outer" ? 1 - zoom * 0.35 : item.particle.type === "inner" || item.particle.type === "spiral" || item.particle.type === "innerFocus" || item.particle.type === "innerFocusDense" ? 1 - zoom * 0.22 : 1;
+          const isInnerFocusType = item.particle.type === "innerFocus" || item.particle.type === "innerFocusDense";
+          // When zoomed into the inner span, boost size and alpha so particles remain visible
+          // as they spread apart. Scale smoothly from 1× at INNER_SPAN_TARGET up to ~3× deeper in.
+          const innerBoost = innerFocusActive && isInnerFocusType
+            ? Math.max(1, Math.sqrt(linearZoom / INNER_SPAN_TARGET))
+            : 1;
+          const baseAlpha = (item.particle.type === "outer" ? 0.13 : item.particle.type === "spiral" ? 0.17 : item.particle.type === "inner" ? 0.24 : isInnerFocusType ? 0.26 : item.particle.type === "asteroid" ? 0.5 : 0.42) * fade * (item.denseAlpha ?? 1);
+          const alpha = Math.max(0.045, Math.min(0.88, (baseAlpha + depth * 0.12) * (isInnerFocusType ? innerBoost : 1)));
+          const size = (item.particle.type === "kuiper" || item.particle.type === "asteroid") ? item.particle.size * depth * 0.75 : item.particle.size * depth * (isInnerFocusType ? innerBoost * 1.8 : 1);
+
+          if (item.particle.type === "spiral") {
+            ctx.fillStyle = item.particle.tint > 0.72
+              ? `rgba(215, 196, 255, ${alpha})`
+              : `rgba(178, 139, 255, ${alpha})`;
+          } else if (item.particle.type === "innerFocus" || item.particle.type === "innerFocusDense") {
+            ctx.fillStyle = item.particle.tint > 0.7
+              ? `rgba(222, 211, 255, ${alpha})`
+              : `rgba(178, 139, 255, ${alpha})`;
+          } else if (item.particle.type === "inner") {
+            ctx.fillStyle = `rgba(114, 235, 218, ${alpha})`;
+          } else if (item.particle.type === "kuiper") {
+            ctx.fillStyle = `rgba(255, 217, 126, ${alpha})`;
+          } else if (item.particle.type === "asteroid") {
+            ctx.fillStyle = item.particle.tint > 0.55
+              ? `rgba(200, 178, 140, ${alpha})`
+              : `rgba(170, 152, 118, ${alpha})`;
+          } else {
+            ctx.fillStyle = item.particle.tint > 0.8
+              ? `rgba(195, 229, 255, ${alpha})`
+              : `rgba(120, 172, 255, ${alpha})`;
+          }
+
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        drawGalacticPlaneOverlay(time, cx, cy, focus);
+        drawSolarSystem(time, cx, cy, focus);
+        document.body.classList.toggle("spiral-active", innerSpiralEnabled);
+        ctx.fillStyle = "rgba(255, 244, 204, 0.95)";
+        ctx.shadowColor = "rgba(255, 220, 130, 0.7)";
+        ctx.shadowBlur = 22;
+        ctx.beginPath();
+        const sunSize = linearZoom > 1.05
+          ? Math.min(5, 2.2 + Math.sqrt(linearZoom) * 0.035)
+          : Math.max(2.5, Math.min(12, scale * 0.012));
+        ctx.arc(cx, cy, sunSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.textAlign = "start";
+
+        mainAnimId = requestAnimationFrame(draw);
+      }
+
+      function drawOrbitCircle(au, time, cx, cy, focus, color) {
+        if (linearZoom > 900 && au > 55) return;
+
+        const radius = radiusForAU(au);
+        const points = [];
+        const segments = linearZoom > 900 ? 32 : linearZoom > 1.05 ? 48 : 160;
+
+        for (let i = 0; i <= segments; i += 1) {
+          const theta = (i / segments) * Math.PI * 2;
+          points.push({
+            x: Math.cos(theta) * radius,
+            y: 0,
+            z: Math.sin(theta) * radius
+          });
+        }
+
+        drawOrbit(points, time, cx, cy, focus, color);
+      }
+
+      function drawOuterHalo(cx, cy) {
+        if (linearZoom > 30 || zoom > 0.35) return;
+
+        const outer = radiusForAU(100000) * scale;
+        const inner = radiusForAU(20000) * scale;
+        const halo = ctx.createRadialGradient(cx, cy, Math.max(1, inner * 0.65), cx, cy, outer * 1.05);
+        halo.addColorStop(0, "rgba(120, 172, 255, 0)");
+        halo.addColorStop(0.58, "rgba(120, 172, 255, 0.035)");
+        halo.addColorStop(0.82, "rgba(155, 205, 255, 0.075)");
+        halo.addColorStop(1, "rgba(120, 172, 255, 0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(cx, cy, outer * 1.08, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      function drawSolarSystem(time, cx, cy, focus) {
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.font = `${11 + zoom * 2}px system-ui, sans-serif`;
+        ctx.textBaseline = "middle";
+        const orbitSegments = linearZoom > 900 ? 20 : linearZoom > 1.05 ? 32 : 96;
+
+        for (const planet of planets) {
+          const radius = radiusForAU(planet.au);
+          const orbitPixelRadius = radius * scale;
+          const points = [];
+
+          if (orbitPixelRadius < Math.max(width, height) * 1.4) {
+            for (let i = 0; i <= orbitSegments; i += 1) {
+              const theta = (i / orbitSegments) * Math.PI * 2;
+              points.push({
+                x: Math.cos(theta) * radius,
+                y: 0,
+                z: Math.sin(theta) * radius
+              });
+            }
+
+            drawOrbit(points, time, cx, cy, focus, `rgba(255, 226, 154, ${0.18 + zoom * 0.18})`);
+          }
+
+          const angle = time * 0.00018 * (365 / planet.period) + planet.au;
+          const planetPoint = {
+            x: Math.cos(angle) * radius,
+            y: 0,
+            z: Math.sin(angle) * radius
+          };
+          const p = project(planetPoint, time, cx, cy, focus);
+          if (!p) continue;
+
+          const markerBoost = linearZoom > 1.05 ? Math.min(2.5, 1 + Math.sqrt(linearZoom) * 0.026) : 1;
+          const size = planet.size * (0.34 + zoom * 0.72) * markerBoost * p.depth;
+
+          ctx.fillStyle = planet.color;
+          ctx.shadowColor = planet.color;
+          ctx.shadowBlur = zoom > 0.25 ? 10 : 3;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          if (zoom > 0.62 || linearZoom > 900) {
+            ctx.fillStyle = "rgba(238, 246, 255, 0.78)";
+            ctx.fillText(planet.name, p.x + size + 6, p.y);
+          }
+        }
+
+        drawKuiperBand(time, cx, cy, focus);
+        ctx.restore();
+      }
+
+      function drawKuiperBand(time, cx, cy, focus) {
+        if (zoom < 0.2) return;
+        if (linearZoom > 900) return;
+
+        const inner = radiusForAU(30);
+        const outer = radiusForAU(55);
+        const steps = 120;
+
+        ctx.fillStyle = `rgba(255, 217, 126, ${0.035 + zoom * 0.045})`;
+        ctx.beginPath();
+        let moved = false;
+
+        for (let i = 0; i <= steps; i += 1) {
+          const theta = (i / steps) * Math.PI * 2;
+          const p = project({ x: Math.cos(theta) * outer, y: 0, z: Math.sin(theta) * outer }, time, width / 2, height / 2 + Math.min(42, height * 0.05), focus);
+          if (!p) continue;
+
+          if (!moved) {
+            ctx.moveTo(p.x, p.y);
+            moved = true;
+          }
+          else ctx.lineTo(p.x, p.y);
+        }
+
+        for (let i = steps; i >= 0; i -= 1) {
+          const theta = (i / steps) * Math.PI * 2;
+          const p = project({ x: Math.cos(theta) * inner, y: 0, z: Math.sin(theta) * inner }, time, width / 2, height / 2 + Math.min(42, height * 0.05), focus);
+          if (!p) continue;
+
+          ctx.lineTo(p.x, p.y);
+        }
+
+        if (!moved) return;
+
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // ── Galactic plane / ecliptic overlay ────────────────────────────────
+      let showGalacticPlane = false;
+      let galPlaneTiltX   = 48.0;   // °, rotation around x-axis (tilts ring up/down)
+      let galPlaneRotY    = -147;   // °, rotation around y-axis (spins ring in-plane)
+      let galPlaneTiltZ   = -50.5;  // °, rotation around z-axis (rolls ring left/right)
+      let galEclipticTiltDeg = 51.0; // °, ecliptic ring tilt
+      let galPlaneRadiusAU   = 27000; // AU
+
+      // Apply user calibration rotations to a 3-D point before projecting
+      function galPtRotate(pt) {
+        // Y rotation (azimuth / in-plane spin)
+        const rY = galPlaneRotY * Math.PI / 180;
+        const cosY = Math.cos(rY), sinY = Math.sin(rY);
+        const x1 = pt.x * cosY + pt.z * sinY;
+        const y1 = pt.y;
+        const z1 = -pt.x * sinY + pt.z * cosY;
+        // X rotation (tilt out of galactic plane)
+        const rX = galPlaneTiltX * Math.PI / 180;
+        const cosX = Math.cos(rX), sinX = Math.sin(rX);
+        const x2 = x1;
+        const y2 = y1 * cosX - z1 * sinX;
+        const z2 = y1 * sinX + z1 * cosX;
+        // Z rotation (roll)
+        const rZ = galPlaneTiltZ * Math.PI / 180;
+        const cosZ = Math.cos(rZ), sinZ = Math.sin(rZ);
+        return { x: x2 * cosZ - y2 * sinZ, y: x2 * sinZ + y2 * cosZ, z: z2 };
+      }
+
+      function drawGalacticPlaneOverlay(time, cx, cy, focus) {
+        if (!showGalacticPlane) return;
+        const N = 120;
+        const R = radiusForAU(galPlaneRadiusAU);
+        const eclipticTilt = galEclipticTiltDeg * Math.PI / 180;
+
+        ctx.save();
+
+        // ── Galactic plane: subtle filled disk ──
+        ctx.beginPath();
+        let moved = false;
+        for (let i = 0; i <= N; i++) {
+          const th = (i / N) * Math.PI * 2;
+          const p = project(galPtRotate({ x: Math.cos(th) * R, y: 0, z: Math.sin(th) * R }), time, cx, cy, focus);
+          if (!p) { moved = false; continue; }
+          if (!moved) { ctx.moveTo(p.x, p.y); moved = true; } else ctx.lineTo(p.x, p.y);
+        }
+        if (moved) { ctx.fillStyle = 'rgba(80,145,255,0.10)'; ctx.fill(); }
+
+        // ── Galactic plane: bright edge ring ──
+        ctx.beginPath();
+        moved = false;
+        for (let i = 0; i <= N; i++) {
+          const th = (i / N) * Math.PI * 2;
+          const p = project(galPtRotate({ x: Math.cos(th) * R, y: 0, z: Math.sin(th) * R }), time, cx, cy, focus);
+          if (!p) { moved = false; continue; }
+          if (!moved) { ctx.moveTo(p.x, p.y); moved = true; } else ctx.lineTo(p.x, p.y);
+        }
+        ctx.strokeStyle = 'rgba(93,170,255,0.80)'; ctx.lineWidth = 1.8; ctx.stroke();
+
+        // ── Galactic plane: dashed diameter cross ──
+        ctx.setLineDash([5, 10]); ctx.strokeStyle = 'rgba(93,170,255,0.22)'; ctx.lineWidth = 1;
+        for (let dir = 0; dir < 2; dir++) {
+          const th = dir * Math.PI / 2;
+          const pa = project(galPtRotate({ x:  Math.cos(th) * R, y: 0, z:  Math.sin(th) * R }), time, cx, cy, focus);
+          const pb = project(galPtRotate({ x: -Math.cos(th) * R, y: 0, z: -Math.sin(th) * R }), time, cx, cy, focus);
+          if (!pa || !pb) continue;
+          ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // ── Galactic north/south pole axis ──
+        const pN = project(galPtRotate({ x: 0, y:  R * 0.55, z: 0 }), time, cx, cy, focus);
+        const pS = project(galPtRotate({ x: 0, y: -R * 0.55, z: 0 }), time, cx, cy, focus);
+        if (pN && pS) {
+          ctx.beginPath(); ctx.moveTo(pS.x, pS.y); ctx.lineTo(pN.x, pN.y);
+          ctx.strokeStyle = 'rgba(93,170,255,0.40)'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.fillStyle = 'rgba(93,170,255,0.85)';
+          ctx.beginPath(); ctx.arc(pN.x, pN.y, 3.5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // ── "Galactic Plane" label at the +x edge ──
+        const pGalLabel = project(galPtRotate({ x: R * 0.74, y: 0, z: 0 }), time, cx, cy, focus);
+        if (pGalLabel) {
+          const side = pGalLabel.x >= cx ? 1 : -1;
+          ctx.fillStyle = 'rgba(93,170,255,0.95)';
+          ctx.font = 'bold 12px system-ui,sans-serif';
+          ctx.textAlign = side > 0 ? 'left' : 'right';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Galactic Plane', pGalLabel.x + side * 9, pGalLabel.y);
+        }
+
+        // ── "Galactic North" label above north pole dot ──
+        if (pN) {
+          ctx.fillStyle = 'rgba(93,170,255,0.70)';
+          ctx.font = '11px system-ui,sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillText('Galactic North', pN.x, pN.y - 7);
+        }
+
+        ctx.restore();
+      }
+
+      document.getElementById('galPlaneBtn').addEventListener('click', () => {
+        showGalacticPlane = !showGalacticPlane;
+        const btn = document.getElementById('galPlaneBtn');
+        btn.textContent = showGalacticPlane ? 'Hide Galactic Plane' : 'View Galactic Plane';
+        btn.classList.toggle('gal-active', showGalacticPlane);
+      });
+
+
+      window.addEventListener("resize", resize);
+      window.addEventListener("pointerdown", (event) => {
+        if (event.target !== canvas) return;
+        if (event.pointerType === "touch") return;
+        dragging = true;
+        dragX = event.clientX;
+        dragY = event.clientY;
+        velYaw = 0;
+        velPitch = 0;
+        canvas.setPointerCapture?.(event.pointerId);
+      });
+      window.addEventListener("pointermove", (event) => {
+        if (dragging && event.pointerType !== "touch") {
+          const dx = event.clientX - dragX;
+          const dy = event.clientY - dragY;
+          velYaw   = dx * 0.006;
+          velPitch = dy * 0.004;
+          rotationYaw   += velYaw;
+          rotationPitch  = Math.max(-1.25, Math.min(1.25, rotationPitch + velPitch));
+          dragX = event.clientX;
+          dragY = event.clientY;
+        }
+      });
+      window.addEventListener("pointerup", (event) => {
+        dragging = false;
+        canvas.releasePointerCapture?.(event.pointerId);
+      });
+      window.addEventListener("pointercancel", () => {
+        dragging = false;
+      });
+      window.addEventListener("wheel", (event) => {
+        if (event.target.closest('.why-screen')) return; // let overlay scroll freely
+        if (applyManualZoom(event.deltaY * 0.0012)) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+      window.addEventListener("touchstart", (event) => {
+        if (event.target !== canvas) return;
+
+        if (event.touches.length === 1) {
+          dragging = true;
+          dragX = event.touches[0].clientX;
+          dragY = event.touches[0].clientY;
+          pinchDistance = null;
+          return;
+        }
+
+        if (event.touches.length !== 2) {
+          dragging = false;
+          pinchDistance = null;
+          return;
+        }
+
+        dragging = false;
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        pinchDistance = Math.hypot(dx, dy);
+      }, { passive: true });
+      window.addEventListener("touchmove", (event) => {
+        if (event.target.closest('.why-screen')) return; // let overlay scroll freely
+        if (event.touches.length === 1 && dragging) {
+          const nextX = event.touches[0].clientX;
+          const nextY = event.touches[0].clientY;
+          const dx = nextX - dragX;
+          const dy = nextY - dragY;
+          velYaw   = dx * 0.006;
+          velPitch = dy * 0.004;
+          rotationYaw   += velYaw;
+          rotationPitch  = Math.max(-1.25, Math.min(1.25, rotationPitch + velPitch));
+          dragX = nextX;
+          dragY = nextY;
+          event.preventDefault();
+          return;
+        }
+
+        if (event.touches.length !== 2 || pinchDistance === null) return;
+
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const nextDistance = Math.hypot(dx, dy);
+        if (nextDistance <= 0) return;
+
+        const delta = Math.log(pinchDistance / nextDistance);
+        if (applyManualZoom(delta)) {
+          event.preventDefault();
+        }
+        pinchDistance = nextDistance;
+      }, { passive: false });
+      window.addEventListener("touchend", () => {
+        dragging = false;
+        pinchDistance = null;
+      }, { passive: true });
+      viewButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        linearZoomActive = false;
+        linearZoomStart = null;
+        linearZoom = 1;
+        linearZoomFrom = 1;
+        linearZoomTo = 1;
+        updateLinearButtonLabel();
+        targetView = targetView === "oort" ? "solar" : "oort";
+        exponentialZoomAnimating = true;
+        viewButton.textContent = targetView === "solar" ? "Back to Linear" : "Exponential Zoom";
+        syncScaleMode();
+      });
+      linearZoomButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        startLinearZoom(LINEAR_ZOOM_TARGET, "solar");
+      });
+      innerSpanButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        startLinearZoom(INNER_SPAN_TARGET, "inner");
+      });
+      makeParticles();
+      resize();
+      let mainAnimId = requestAnimationFrame(draw);
+
+      function pauseMainSim() {
+        cancelAnimationFrame(mainAnimId);
+        mainAnimId = null;
+      }
+      function resumeMainSim() {
+        if (!mainAnimId) mainAnimId = requestAnimationFrame(draw);
+      }
+
+      // ── Spiral Formation Screen ──────────────────────────────────────
+      const spiralScreen = document.getElementById('spiralScreen');
+      const spiralCanvas = document.getElementById('spiralCanvas');
+      const spiralCtx = spiralCanvas.getContext('2d');
+      let formParts = [];
+      let formT = 0;
+      let formPlaying = false;
+      let formAnimId = null;
+      let spW = 0, spH = 0;
+      let spYaw = 0.22, spPitch = 0.28;
+      let spDragging = false, spDragX = 0, spDragY = 0;
+      let spPtrX = 0, spPtrY = 0;
+      let spPinchDist = null;
+      let spiralViewMode = 'sphere'; // 'sphere' | 'polar'
+
+      const FORM_N = 2400;
+      const GAL_TILT = 60.2 * Math.PI / 180; // angle between ecliptic and galactic poles
+
+      // ── View-mode pill ───────────────────────────────────────────────────
+      function setSpiralViewMode(mode) {
+        spiralViewMode = mode;
+        document.getElementById('sphereViewBtn').classList.toggle('active', mode === 'sphere');
+        document.getElementById('polarViewBtn').classList.toggle('active', mode === 'polar');
+        // Show drag hint + galactic plane toggle only for 3D sphere
+        const sub = document.querySelector('.spiral-sub');
+        const galLabel = document.getElementById('galPlaneLabel');
+        if (mode === 'sphere') {
+          sub.textContent = 'Galactic tidal torque winds Neptune-scattered comets into a two-arm spiral — drag to rotate';
+          galLabel.style.opacity = '';
+          galLabel.style.pointerEvents = '';
+        } else {
+          sub.textContent = 'Polar map: radial distance = semi-major axis, angle = ω (argument of perihelion in galactic frame)';
+          galLabel.style.opacity = '0.25';
+          galLabel.style.pointerEvents = 'none';
+        }
+      }
+      document.getElementById('sphereViewBtn').addEventListener('click', () => setSpiralViewMode('sphere'));
+      document.getElementById('polarViewBtn').addEventListener('click',  () => setSpiralViewMode('polar'));
+
+      // "Why a spiral?" handled below (navigate to explain.html)
+
+      document.getElementById('backFromSpiral').addEventListener('click', () => {
+        spiralScreen.classList.remove('visible');
+        spiralScreen.setAttribute('aria-hidden', 'true');
+        formPlaying = false;
+        document.getElementById('formPlayBtn').textContent = '▶ Play';
+        cancelAnimationFrame(formAnimId);
+        formAnimId = null;
+        resumeMainSim();
+      });
+
+      document.getElementById('formPlayBtn').addEventListener('click', () => {
+        formPlaying = !formPlaying;
+        document.getElementById('formPlayBtn').textContent = formPlaying ? '⏸ Pause' : '▶ Play';
+      });
+
+      document.getElementById('formTimeSlider').addEventListener('input', function () {
+        formT = this.value / 100;
+        updateFormUI();
+      });
+
+      function updateFormUI() {
+        const gyr = (formT * 4.5).toFixed(1);
+        document.getElementById('formTimeLabel').textContent = `${gyr} Gyr`;
+        const ann = document.getElementById('formAnnotation');
+        if (formT < 0.08) {
+          ann.textContent = 't = 0 — Comets freshly scattered by Neptune. All perihelia cluster near the galactic equatorial plane; the tidal torque has not yet had time to act.';
+        } else if (formT < 0.28) {
+          ann.textContent = 'Early winding: galactic tidal torque begins rotating perihelion directions. Outer orbits (larger a) respond first — the spiral\'s first turn is forming.';
+        } else if (formT < 0.55) {
+          ann.textContent = 'Differential precession in full swing: each radial shell leads the next by a different angle. The two-arm spiral structure is clearly emerging.';
+        } else if (formT < 0.78) {
+          ann.textContent = 'Kozai locking begins — all orbits are above the 39.2° critical inclination, so ω is attracted to the stable equilibria at ±90°. Arms are sharpening.';
+        } else {
+          ann.textContent = 'Inner Oort Cloud at ~4.5 Gyr: perihelia locked at ω = ±90° relative to the galactic plane. The two arms are the fossil record of Kozai–Lidov resonance.';
+        }
+      }
+
+      function buildFormParts() {
+        formParts = [];
+        for (let i = 0; i < FORM_N; i++) {
+          const a = 2000 + Math.pow(Math.random(), 0.52) * 18000;
+
+          // Galactic-frame orbital elements (tidal torque acts in galactic frame)
+          // Ecliptic ≈ 60° from galactic plane → Neptune-scattered comets have
+          // galactic inclination distributed around 60°, well above the 39.2° Kozai threshold
+          const iGal = 0.78 + Math.random() * 0.68;  // ~45–84°
+          const Omega = Math.random() * Math.PI * 2;  // ascending node: isotropic
+
+          // KEY: start coherent — perihelion direction near galactic equator (ω ≈ 0)
+          // This represents the initial disk state before any tidal action.
+          // Small scatter ±15° captures the finite disk thickness.
+          const omega0 = (Math.random() - 0.5) * 0.26;
+
+          // Galactic tidal precession rate ∝ a^1.5 (Kozai–Lidov secular period ∝ a^{-3/2})
+          // Normalised so a = 8000 AU → rate = 1
+          const rate = Math.pow(a / 8000, 1.5);
+
+          formParts.push({ a, iGal, Omega, omega0, rate, tint: Math.random() });
+        }
+      }
+
+      function getFormPoint(p, t) {
+        // Spiral winding: differential galactic tidal precession.
+        // Outer orbits wind faster (rate ∝ a^1.5), producing a spiral of
+        // perihelion directions on the celestial sphere.
+        const MAX_WIND = Math.PI * 2.4;  // fastest particles wind ~2.4 × 2π
+        const omega = p.omega0 + p.rate * t * MAX_WIND;
+
+        // Perihelion direction in galactic frame from (Ω, i, ω)
+        const cosI = Math.cos(p.iGal), sinI = Math.sin(p.iGal);
+        const cosO = Math.cos(p.Omega), sinO = Math.sin(p.Omega);
+        const cosW = Math.cos(omega),   sinW = Math.sin(omega);
+
+        const gx = cosO * cosW - sinO * sinW * cosI;
+        const gy = sinW * sinI;                           // galactic-north component
+        const gz = sinO * cosW + cosO * sinW * cosI;
+
+        const rVis = 0.12 + Math.sqrt((p.a - 2000) / 18000) * 0.84;
+        return { x: gx * rVis, y: gy * rVis, z: gz * rVis, galNorth: gy, omega };
+      }
+
+      function spRotate(pt) {
+        const yaw = spYaw + spPtrX * 0.07;
+        const pitch = spPitch + spPtrY * 0.035;
+        const cy = Math.cos(yaw), sy = Math.sin(yaw);
+        const x1 = pt.x * cy - pt.z * sy;
+        const z1 = pt.x * sy + pt.z * cy;
+        const cp = Math.cos(pitch), sp2 = Math.sin(pitch);
+        const y2 = pt.y * cp - z1 * sp2;
+        const z2 = pt.y * sp2 + z1 * cp;
+        return { x: x1, y: y2, z: z2 };
+      }
+
+      function resizeSpiral() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        spW = window.innerWidth;
+        spH = window.innerHeight;
+        spiralCanvas.width = Math.round(spW * dpr);
+        spiralCanvas.height = Math.round(spH * dpr);
+        spiralCanvas.style.width = `${spW}px`;
+        spiralCanvas.style.height = `${spH}px`;
+        spiralCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      // ── 2-D Polar "Spiral Map" renderer ─────────────────────────────────
+      // r = sqrt(a) scaling, θ = ω_gal (argument of perihelion in galactic frame).
+      // At t=0 all dots sit at θ≈0 — a radial spoke. Differential precession
+      // (outer orbits faster) coils that spoke into an Archimedean spiral. By t=1
+      // Kozai locking draws the dots toward θ=±90°, forming two radial arms.
+      function drawFormPolar() {
+        spiralCtx.clearRect(0, 0, spW, spH);
+        const cx = spW / 2, cy = spH / 2;
+        const maxR = Math.min(spW, spH) * 0.41;
+
+        // ── Faint radial / circular grid ──
+        spiralCtx.save();
+        spiralCtx.strokeStyle = 'rgba(100,80,200,0.13)';
+        spiralCtx.lineWidth = 1;
+        for (let frac = 0.25; frac <= 1.01; frac += 0.25) {
+          spiralCtx.beginPath();
+          spiralCtx.arc(cx, cy, maxR * frac, 0, Math.PI * 2);
+          spiralCtx.stroke();
+        }
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+          spiralCtx.beginPath();
+          spiralCtx.moveTo(cx, cy);
+          spiralCtx.lineTo(cx + maxR * Math.cos(a), cy + maxR * Math.sin(a));
+          spiralCtx.stroke();
+        }
+        spiralCtx.restore();
+
+        // ── Kozai equilibria lines at ω = ±90° (vertical axis in our layout) ──
+        spiralCtx.save();
+        spiralCtx.strokeStyle = 'rgba(200,160,255,0.32)';
+        spiralCtx.lineWidth = 1.5;
+        spiralCtx.setLineDash([5, 7]);
+        spiralCtx.beginPath();
+        spiralCtx.moveTo(cx, cy - maxR - 8);
+        spiralCtx.lineTo(cx, cy + maxR + 8);
+        spiralCtx.stroke();
+        spiralCtx.setLineDash([]);
+        spiralCtx.fillStyle = 'rgba(200,160,255,0.60)';
+        spiralCtx.font = '10px system-ui,sans-serif';
+        spiralCtx.textAlign = 'center';
+        spiralCtx.textBaseline = 'bottom';
+        spiralCtx.fillText('ω = 90°  (Kozai N)', cx, cy - maxR - 10);
+        spiralCtx.textBaseline = 'top';
+        spiralCtx.fillText('ω = 270°  (Kozai S)', cx, cy + maxR + 10);
+        spiralCtx.restore();
+
+        // ── Origin spoke label (ω = 0 = galactic equator crossing) ──
+        spiralCtx.save();
+        spiralCtx.strokeStyle = 'rgba(93,170,255,0.22)';
+        spiralCtx.lineWidth = 1.2;
+        spiralCtx.setLineDash([3, 7]);
+        spiralCtx.beginPath();
+        spiralCtx.moveTo(cx, cy);
+        spiralCtx.lineTo(cx + maxR + 8, cy);
+        spiralCtx.stroke();
+        spiralCtx.setLineDash([]);
+        spiralCtx.fillStyle = 'rgba(93,170,255,0.50)';
+        spiralCtx.font = '10px system-ui,sans-serif';
+        spiralCtx.textAlign = 'left';
+        spiralCtx.textBaseline = 'middle';
+        spiralCtx.fillText('ω = 0°', cx + maxR + 10, cy);
+        spiralCtx.restore();
+
+        // ── Axis labels (semi-major axis rings) ──
+        const aLabels = [{ a: 4000, label: '4 kAU' }, { a: 10000, label: '10 kAU' }, { a: 18000, label: '18 kAU' }];
+        spiralCtx.save();
+        spiralCtx.fillStyle = 'rgba(180,180,220,0.40)';
+        spiralCtx.font = '9px system-ui,sans-serif';
+        spiralCtx.textAlign = 'left';
+        spiralCtx.textBaseline = 'middle';
+        for (const { a, label } of aLabels) {
+          const r = maxR * Math.sqrt((a - 2000) / 18000);
+          spiralCtx.fillText(label, cx + r + 3, cy - 6);
+        }
+        spiralCtx.restore();
+
+        // ── Particles ──
+        // Sort by ω so overlapping dots at end-state arms look clean
+        const pts = [];
+        for (const p of formParts) {
+          const raw = getFormPoint(p, formT);
+          const rNorm = Math.sqrt(Math.max(0, (p.a - 2000) / 18000)); // 0 → 1
+          const r = rNorm * maxR;
+          // θ: use omega from getFormPoint; 0 = right, CCW positive → flip to CW for "clock" feel
+          const theta = -raw.omega; // negated so winding goes CW (outer leads)
+          const px = cx + r * Math.cos(theta - Math.PI / 2); // −π/2 rotates 0 to top
+          const py = cy + r * Math.sin(theta - Math.PI / 2);
+          const inArm = Math.abs(raw.galNorth);
+          pts.push({ px, py, r, inArm });
+        }
+        pts.sort((a, b) => a.r - b.r); // paint inner first so outer overdraw on top
+
+        for (const { px, py, inArm } of pts) {
+          if (!isFinite(px) || !isFinite(py)) continue;
+          const alpha = Math.min(0.90, 0.42 + inArm * 0.44);
+          const size  = 1.4 + inArm * 0.9;
+
+          if (inArm > 0.62) {
+            spiralCtx.shadowColor = 'rgba(200,160,255,0.55)';
+            spiralCtx.shadowBlur = 4;
+            spiralCtx.fillStyle = `rgba(210,170,255,${alpha})`;
+          } else if (inArm > 0.30) {
+            spiralCtx.shadowBlur = 0;
+            spiralCtx.fillStyle = `rgba(160,185,255,${alpha * 0.92})`;
+          } else {
+            spiralCtx.shadowBlur = 0;
+            spiralCtx.fillStyle = `rgba(130,185,255,${alpha * 0.82})`;
+          }
+          spiralCtx.beginPath();
+          spiralCtx.arc(px, py, size, 0, Math.PI * 2);
+          spiralCtx.fill();
+          spiralCtx.shadowBlur = 0;
+        }
+
+        // ── Sun at centre ──
+        spiralCtx.fillStyle = 'rgba(255,244,204,0.95)';
+        spiralCtx.shadowColor = 'rgba(255,220,130,0.9)';
+        spiralCtx.shadowBlur = 16;
+        spiralCtx.beginPath(); spiralCtx.arc(cx, cy, 4.5, 0, Math.PI * 2); spiralCtx.fill();
+        spiralCtx.shadowBlur = 0;
+      }
+
+      function drawFormLoop() {
+        if (formPlaying) {
+          formT = Math.min(1, formT + 0.0014);
+          document.getElementById('formTimeSlider').value = formT * 100;
+          updateFormUI();
+          if (formT >= 1) {
+            formPlaying = false;
+            document.getElementById('formPlayBtn').textContent = '▶ Play';
+          }
+        }
+
+        if (spiralViewMode === 'polar') {
+          drawFormPolar();
+          formAnimId = requestAnimationFrame(drawFormLoop);
+          return;
+        }
+
+        spiralCtx.clearRect(0, 0, spW, spH);
+        const cx = spW / 2, cy = spH / 2 + 18;
+        const sc = Math.min(spW, spH) * 0.42;
+        const focus = 2.62;
+
+        // Subtle glow
+        const bgG = spiralCtx.createRadialGradient(cx, cy, 0, cx, cy, sc * 0.88);
+        bgG.addColorStop(0, 'rgba(100,60,220,0.12)');
+        bgG.addColorStop(0.5, 'rgba(80,50,180,0.06)');
+        bgG.addColorStop(1, 'rgba(80,50,180,0)');
+        spiralCtx.fillStyle = bgG;
+        spiralCtx.beginPath(); spiralCtx.arc(cx, cy, sc, 0, Math.PI * 2); spiralCtx.fill();
+
+        // Galactic plane ring
+        if (document.getElementById('showGalPlane').checked) {
+          spiralCtx.beginPath();
+          let gMoved = false;
+          for (let i = 0; i <= 96; i++) {
+            const theta = (i / 96) * Math.PI * 2;
+            const raw = { x: Math.cos(theta) * 0.96, y: 0, z: Math.sin(theta) * 0.96 };
+            const rot = spRotate(raw);
+            if (focus - rot.z <= 0.08) continue;
+            const depth = focus / (focus - rot.z);
+            const px = cx + rot.x * sc * depth;
+            const py = cy + rot.y * sc * depth;
+            if (!gMoved) { spiralCtx.moveTo(px, py); gMoved = true; } else spiralCtx.lineTo(px, py);
+          }
+          spiralCtx.strokeStyle = 'rgba(93,170,255,0.22)';
+          spiralCtx.lineWidth = 1;
+          spiralCtx.setLineDash([4, 8]);
+          spiralCtx.stroke();
+          spiralCtx.setLineDash([]);
+          // Galactic north pole marker
+          const northRaw = { x: 0, y: 0.96, z: 0 };
+          const northRot = spRotate(northRaw);
+          if (focus - northRot.z > 0.08) {
+            const nd = focus / (focus - northRot.z);
+            const npx = cx + northRot.x * sc * nd;
+            const npy = cy + northRot.y * sc * nd;
+            spiralCtx.fillStyle = 'rgba(93,170,255,0.55)';
+            spiralCtx.font = '11px system-ui,sans-serif';
+            spiralCtx.textAlign = 'center';
+            spiralCtx.textBaseline = 'bottom';
+            spiralCtx.fillText('galactic N', npx, npy - 4);
+          }
+        }
+
+        // Sort and draw particles
+        const pts = [];
+        for (const p of formParts) {
+          const raw = getFormPoint(p, formT);
+          const rot = spRotate(raw);
+          pts.push({ rot, galNorth: raw.galNorth });
+        }
+        pts.sort((a, b) => a.rot.z - b.rot.z);
+
+        for (const item of pts) {
+          const rot = item.rot;
+          if (focus - rot.z <= 0.08) continue;
+          const depth = focus / (focus - rot.z);
+          if (!isFinite(depth) || depth <= 0 || depth > 20) continue;
+          const x = cx + rot.x * sc * depth;
+          const y = cy + rot.y * sc * depth;
+          if (!isFinite(x) || !isFinite(y)) continue;
+
+          // Color by galactic latitude of perihelion:
+          // Near galactic poles (|gy| high) → bright purple (in arm)
+          // Near galactic equator (gy ≈ 0) → blue-white (between arms)
+          const inArm = Math.abs(item.galNorth); // 0 = equator, 1 = pole
+          const alpha = Math.min(0.92, 0.38 + inArm * 0.42 + depth * 0.10);
+          const size = 1.1 + depth * 0.55 + inArm * 0.7;
+
+          if (inArm > 0.62) {
+            spiralCtx.shadowColor = 'rgba(200,160,255,0.55)';
+            spiralCtx.shadowBlur = 4;
+            spiralCtx.fillStyle = `rgba(210,170,255,${alpha})`;
+          } else if (inArm > 0.30) {
+            spiralCtx.shadowBlur = 0;
+            spiralCtx.fillStyle = `rgba(160,185,255,${alpha * 0.92})`;
+          } else {
+            spiralCtx.shadowBlur = 0;
+            spiralCtx.fillStyle = `rgba(130,185,255,${alpha * 0.82})`;
+          }
+
+          spiralCtx.beginPath();
+          spiralCtx.arc(x, y, size, 0, Math.PI * 2);
+          spiralCtx.fill();
+          spiralCtx.shadowBlur = 0;
+        }
+
+        // Sun
+        spiralCtx.fillStyle = 'rgba(255,244,204,0.95)';
+        spiralCtx.shadowColor = 'rgba(255,220,130,0.9)';
+        spiralCtx.shadowBlur = 16;
+        spiralCtx.beginPath(); spiralCtx.arc(cx, cy, 4.5, 0, Math.PI * 2); spiralCtx.fill();
+        spiralCtx.shadowBlur = 0;
+
+        formAnimId = requestAnimationFrame(drawFormLoop);
+      }
+
+      // Pointer / touch events for spiral canvas
+      spiralCanvas.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') return;
+        spDragging = true; spDragX = e.clientX; spDragY = e.clientY;
+        spiralCanvas.setPointerCapture?.(e.pointerId);
+      });
+      spiralCanvas.addEventListener('pointermove', (e) => {
+        if (spDragging && e.pointerType !== 'touch') {
+          spYaw += (e.clientX - spDragX) * 0.006;
+          spPitch = Math.max(-1.2, Math.min(1.2, spPitch + (e.clientY - spDragY) * 0.004));
+          spDragX = e.clientX; spDragY = e.clientY;
+        } else {
+          spPtrX = (e.clientX / Math.max(1, spW) - 0.5) * 2;
+          spPtrY = (e.clientY / Math.max(1, spH) - 0.5) * 2;
+        }
+      });
+      spiralCanvas.addEventListener('pointerup', (e) => {
+        spDragging = false; spiralCanvas.releasePointerCapture?.(e.pointerId);
+      });
+      spiralCanvas.addEventListener('pointercancel', () => { spDragging = false; });
+      spiralCanvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) { spDragging = true; spDragX = e.touches[0].clientX; spDragY = e.touches[0].clientY; spPinchDist = null; return; }
+        if (e.touches.length === 2) { spDragging = false; spPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+      }, { passive: true });
+      spiralCanvas.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && spDragging) {
+          spYaw += (e.touches[0].clientX - spDragX) * 0.006;
+          spPitch = Math.max(-1.2, Math.min(1.2, spPitch + (e.touches[0].clientY - spDragY) * 0.004));
+          spDragX = e.touches[0].clientX; spDragY = e.touches[0].clientY;
+          e.preventDefault();
+        }
+      }, { passive: false });
+      spiralCanvas.addEventListener('touchend', () => { spDragging = false; spPinchDist = null; }, { passive: true });
+      window.addEventListener('resize', () => {
+        if (spiralScreen.classList.contains('visible')) resizeSpiral();
+      });
+
+      // ── Kozai Explanation Screen ─────────────────────────────────────
+      // "Why a spiral?" → explain.html
+      document.getElementById('spiralButton').addEventListener('click', () => {
+        location.href = 'explain.html';
+      });
+
+      // explain.html "Formation Sim →" lands here with #open-formation hash
+      if (location.hash === '#open-formation') {
+        history.replaceState(null, '', location.pathname);
+        pauseMainSim();
+        requestAnimationFrame(() => {
+          if (formParts.length === 0) buildFormParts();
+          resizeSpiral();
+          formT = 0;
+          formPlaying = true;
+          document.getElementById('formPlayBtn').textContent = '⏸ Pause';
+          updateFormUI();
+          if (!formAnimId) formAnimId = requestAnimationFrame(drawFormLoop);
+          spiralScreen.classList.add('visible');
+          spiralScreen.removeAttribute('aria-hidden');
+        });
+      }
+
+
+      // ── Why It Formed screen ─────────────────────────────────────────
+      function startLinearZoom(target, preset) {
+        targetView = "oort";
+        exponentialZoomAnimating = false;
+        zoom = 0;
+        viewButton.textContent = "Exponential Zoom";
+
+        if (linearZoomActive && linearZoomPreset === preset) {
+          linearZoomActive = false;
+          linearZoomStart = null;
+          linearZoom = 1;
+          linearZoomFrom = 1;
+          linearZoomTo = 1;
+          linearZoomPreset = "solar";
+          updateLinearButtonLabel();
+          syncScaleMode();
+          return;
+        }
+
+        linearZoomPreset = preset;
+        linearZoomFrom = linearZoom;
+        linearZoomTo = linearZoom >= target * 0.92 ? 1 : target;
+        linearZoom = linearZoomFrom;
+        linearZoomActive = true;
+        linearZoomStart = null;
+        updateLinearButtonLabel();
+        syncScaleMode();
+      }
+    </script>
+  </body>
+</html>
